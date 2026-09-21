@@ -31,17 +31,25 @@ public class TacoOrder implements Serializable {
 
   private String deliveryZip;
 
-  private String ccNumber;
+  private String paymentMethodId;
+  private String discountCode;
+  private java.math.BigDecimal discountAmount = java.math.BigDecimal.ZERO;
+  
+  @org.springframework.data.annotation.Version
+  private Long version;
+  
+  private OrderStatus status = OrderStatus.CREATED;
+  private List<OrderStatusHistory> statusHistory = new ArrayList<>();
+  
+  private String stationId;
+  private String cookId;
+  private Integer estimatedPrepMinutes;
+  
+  private List<OrderItem> items = new ArrayList<>();
+  private java.math.BigDecimal total = java.math.BigDecimal.ZERO;
 
-  private String ccExpiration;
-
-  private String ccCVV;
-
-
-  private List<Taco> tacos = new ArrayList<>();
-
-  public void addTaco(Taco design) {
-    this.tacos.add(design);
-}
+  public void addItem(OrderItem item) {
+    this.items.add(item);
+  }
 
 }

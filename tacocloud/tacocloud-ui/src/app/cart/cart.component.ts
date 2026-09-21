@@ -16,10 +16,8 @@ export class CartComponent implements OnInit {
     deliveryStreet: '',
     deliveryState: '',
     deliveryZip: '',
-    ccNumber: '',
-    ccExpiration: '',
-    ccCVV: '',
-    tacos: []
+    paymentMethodId: '',
+    items: [] as any[]
   };
 
   constructor(private cart: CartService, private httpClient: HttpClient) {
@@ -37,9 +35,8 @@ export class CartComponent implements OnInit {
   }
 
   onSubmit() {
-    // this.model.tacos = this.cart.getItemsInCart();
     this.cart.getItemsInCart().forEach(cartItem => {
-      this.model.tacos.push(cartItem.taco);
+      this.model.items.push({ taco: cartItem.taco, quantity: cartItem.quantity || 1 });
     });
 
     this.httpClient.post(

@@ -29,12 +29,16 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     http
       .authorizeRequests()
         .antMatchers(HttpMethod.OPTIONS).permitAll() // needed for Angular/CORS
-        .antMatchers(HttpMethod.POST, "/api/ingredients").permitAll()
-        .antMatchers("/api/tacos/**", "/api/orders/**")
-            .permitAll()
-            //.access("hasRole('ROLE_USER')")
-        .antMatchers(HttpMethod.PATCH, "/api/ingredients").permitAll()
-        .antMatchers("/**").access("permitAll")
+        .antMatchers(HttpMethod.GET, "/api/**tacos/**", "/api/**ingredients/**").permitAll()
+        .antMatchers("/api/**ingredients/**").hasRole("ADMIN")
+        .antMatchers("/api/**kitchen/**").hasRole("KITCHEN")
+        .antMatchers("/api/**orders/**").hasRole("USER")
+        .antMatchers("/actuator/health").permitAll()
+        .antMatchers("/actuator/**").hasRole("ADMIN")
+        .antMatchers("/data-api/**").hasRole("ADMIN")
+        .antMatchers("/register", "/login").permitAll()
+        .antMatchers("/", "/**/*.html", "/**/*.js", "/**/*.css", "/**/*.ico").permitAll()
+        .anyRequest().authenticated()
         
       .and()
         .formLogin()
@@ -50,7 +54,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
           
       .and()
         .csrf()
-          .ignoringAntMatchers("/h2-console/**", "/api/**")
+          .ignoringAntMatchers("/h2-console/**", "/api/**", "/api/v1/**")
 
       // Allow pages to be loaded in frames from the same origin; needed for H2-Console
       .and()  
@@ -62,8 +66,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
   @Bean
   public PasswordEncoder encoder() {
-//    return new StandardPasswordEncoder("53cr3t");
-    return NoOpPasswordEncoder.getInstance();
+    return org.springframework.security.crypto.factory.PasswordEncoderFactories.createDelegatingPasswordEncoder();
   }
   
   

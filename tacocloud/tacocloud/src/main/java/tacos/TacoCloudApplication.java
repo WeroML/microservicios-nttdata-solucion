@@ -13,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.servlet.ModelAndView;
 
 @SpringBootApplication
+@org.springframework.scheduling.annotation.EnableScheduling
 public class TacoCloudApplication {
 
   public static void main(String[] args) {

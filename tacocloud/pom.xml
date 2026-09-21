@@ -34,6 +34,7 @@
       <module>tacocloud-messaging-kafka</module>
       <module>tacocloud-messaging-rabbitmq</module>
       <module>tacocloud-messaging-noop</module>
+      <module>tacocloud-messaging-contract</module>
       <module>tacocloud-restclient</module>
       <module>tacocloud-security</module>
       <module>tacocloud-web</module>

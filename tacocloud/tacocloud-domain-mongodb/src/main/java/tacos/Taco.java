@@ -29,4 +29,10 @@ public class Taco {
   @Size(min=1, message="You must choose at least 1 ingredient")
   private List<Ingredient> ingredients;
 
+  private java.util.Set<Ingredient.DietaryTag> dietaryTags = new java.util.HashSet<>();
+  private java.util.Set<Ingredient.Allergen> allergens = new java.util.HashSet<>();
+  private Ingredient.SpiceLevel spiceLevel = Ingredient.SpiceLevel.NONE;
+  
+  private double ratingAverage = 0.0;
+  private int ratingCount = 0;
 }

@@ -1,5 +1,8 @@
 package tacos.web.api;
 
+import tacos.classification.ClassificationService;
+import tacos.validation.TacoValidatorService;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -34,11 +37,14 @@ public class TacoControllerTest {
     Flux<Taco> tacoFlux = Flux.just(tacos);
 
     TacoRepository tacoRepo = Mockito.mock(TacoRepository.class);
+    ClassificationService classService = Mockito.mock(ClassificationService.class);
+    TacoValidatorService validatorService = Mockito.mock(TacoValidatorService.class);
+    Mockito.when(validatorService.validate(Mockito.any(Taco.class))).thenReturn(java.util.Collections.emptyList());
+    TacoOfTheDayService tacoOfTheDayService = Mockito.mock(TacoOfTheDayService.class);
+    TacoController tacoController = new TacoController(tacoRepo, classService, validatorService, tacoOfTheDayService);
     when(tacoRepo.findAll()).thenReturn(tacoFlux);
 
-    WebTestClient testClient = WebTestClient.bindToController(
-        new TacoController(tacoRepo))
-        .build();
+    WebTestClient testClient = WebTestClient.bindToController(tacoController).build();
 
     testClient.get().uri("/api/tacos?recent")
       .exchange()
@@ -57,16 +63,21 @@ public class TacoControllerTest {
 
   @Test
   public void shouldSaveATaco() {
-    TacoRepository tacoRepo = Mockito.mock(
-                TacoRepository.class);
+    TacoRepository tacoRepo = Mockito.mock(TacoRepository.class);
+    ClassificationService classService = Mockito.mock(ClassificationService.class);
+    Mockito.when(classService.classify(Mockito.any(Taco.class))).thenReturn(new ClassificationService.TacoClassification(new java.util.HashSet<>(), new java.util.HashSet<>(), tacos.Ingredient.SpiceLevel.NONE));
+    TacoValidatorService validatorService = Mockito.mock(TacoValidatorService.class);
+    Mockito.when(validatorService.validate(Mockito.any(Taco.class))).thenReturn(java.util.Collections.emptyList());
+    TacoOfTheDayService tacoOfTheDayService = Mockito.mock(TacoOfTheDayService.class);
+    
+    TacoController tacoController = new TacoController(tacoRepo, classService, validatorService, tacoOfTheDayService);
     Mono<Taco> unsavedTacoMono = Mono.just(testTaco(null));
     Taco savedTaco = testTaco(null);
     Mono<Taco> savedTacoMono = Mono.just(savedTaco);
 
     when(tacoRepo.save(any())).thenReturn(savedTacoMono);
 
-    WebTestClient testClient = WebTestClient.bindToController(
-        new TacoController(tacoRepo)).build();
+    WebTestClient testClient = WebTestClient.bindToController(tacoController).build();
 
     testClient.post()
         .uri("/api/tacos")

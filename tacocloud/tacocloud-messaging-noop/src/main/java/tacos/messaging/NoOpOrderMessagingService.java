@@ -1,17 +1,18 @@
 package tacos.messaging;
 
 import org.springframework.stereotype.Service;
-
+import tacos.messaging.contract.OrderEvent;
+import tacos.messaging.contract.OrderMessagingService;
 import lombok.extern.slf4j.Slf4j;
-import tacos.TacoOrder;
 
 @Service
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name="tacocloud.messaging.transport", havingValue="noop", matchIfMissing=true)
 @Slf4j
-public class NoOpOrderMessagingService
-       implements OrderMessagingService {
-  
-  public void sendOrder(TacoOrder order) {
-    log.info("Sending order to kitchen: " + order);
-  }
-  
+public class NoOpOrderMessagingService implements OrderMessagingService {
+
+    @Override
+    public void sendOrderEvent(OrderEvent event) {
+        log.info("No-op messaging: received event {}", event);
+    }
+
 }

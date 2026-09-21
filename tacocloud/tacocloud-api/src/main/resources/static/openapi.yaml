@@ -1,0 +1,51 @@
+openapi: 3.0.3
+info:
+  title: TacoCloud API
+  version: "1.0.0"
+  description: API for TacoCloud application.
+servers:
+  - url: /api/v1
+    description: v1 API
+  - url: /api
+    description: Legacy API (Deprecated)
+paths:
+  /orders:
+    post:
+      summary: Creates an order
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          schema:
+            type: string
+          required: false
+        - in: header
+          name: X-Correlation-Id
+          schema:
+            type: string
+          required: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                deliveryName:
+                  type: string
+                items:
+                  type: array
+                  items:
+                    type: object
+      responses:
+        '201':
+          description: Created
+        '400':
+          description: Bad Request
+        '409':
+          description: Conflict (Idempotency Key duplicate)
+  /tacos:
+    get:
+      summary: Get tacos
+      responses:
+        '200':
+          description: OK

@@ -18,8 +18,9 @@ public class PaymentMethod {
   private String id;
   
   private final User user;
-  private final String ccNumber;
-  private final String ccCVV;
+  private final String paymentToken;
+  private final String brand;
+  private final String last4;
   private final String ccExpiration;
   
 }

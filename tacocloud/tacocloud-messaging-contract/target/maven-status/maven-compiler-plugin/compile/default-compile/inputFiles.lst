@@ -1,0 +1,4 @@
+/Users/gusml/NTT Data/Mis Laboratorios Capacitación/microservicios-nttdata-solucion/tacocloud/tacocloud-messaging-contract/src/main/java/tacos/messaging/contract/OrderEvent.java
+/Users/gusml/NTT Data/Mis Laboratorios Capacitación/microservicios-nttdata-solucion/tacocloud/tacocloud-messaging-contract/src/main/java/tacos/messaging/contract/OrderEventPayload.java
+/Users/gusml/NTT Data/Mis Laboratorios Capacitación/microservicios-nttdata-solucion/tacocloud/tacocloud-messaging-contract/src/main/java/tacos/messaging/contract/OrderEventType.java
+/Users/gusml/NTT Data/Mis Laboratorios Capacitación/microservicios-nttdata-solucion/tacocloud/tacocloud-messaging-contract/src/main/java/tacos/messaging/contract/OrderMessagingService.java

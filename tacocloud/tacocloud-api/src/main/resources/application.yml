@@ -35,3 +35,17 @@ spring:
     port: 61617
     user: tacoweb
     password: l3tm31n
+logging:
+  pattern:
+    console: "%clr(%d{${LOG_DATEFORMAT_PATTERN:-yyyy-MM-dd HH:mm:ss.SSS}}){faint} %clr(${LOG_LEVEL_PATTERN:-%5p}) %clr(${PID:- }){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} [cid:%X{correlationId}] %m%n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,info,announcements
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true

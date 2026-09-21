@@ -43,7 +43,7 @@ public class DevelopmentConfig {
               "Craig Walls", "123 North Street", "Cross Roads", "TX", 
               "76227", "123-123-1234", "craig@habuma.com"))
           .subscribe(user -> {
-              paymentMethodRepo.save(new PaymentMethod(user, "4111111111111111", "321", "10/25")).subscribe();
+              paymentMethodRepo.save(new PaymentMethod(user, "tok_fake_token", "Visa", "1111", "10/25")).subscribe();
           });        
         
         Taco taco1 = new Taco();
@@ -68,6 +68,11 @@ public class DevelopmentConfig {
 
       private Ingredient saveAnIngredient(String id, String name, Type type) {
         Ingredient ingredient = new Ingredient(id, name, type);
+        ingredient.setUnitPrice(new java.math.BigDecimal("0.50"));
+        ingredient.setAvailable(true);
+        ingredient.setStockOnHand(100);
+        ingredient.setReorderLevel(10);
+        ingredient.setVersion(0L);
         repo.save(ingredient).subscribe();
         return ingredient;
       }

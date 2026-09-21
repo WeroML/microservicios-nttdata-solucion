@@ -23,6 +23,11 @@
 	</properties>
 
 	<dependencies>
+        <dependency>
+            <groupId>sia</groupId>
+            <artifactId>tacocloud-messaging-contract</artifactId>
+            <version>0.0.17-SNAPSHOT</version>
+        </dependency>
 		<!-- TacoCloud dependencies -->
 		<dependency>
 			<groupId>sia</groupId>

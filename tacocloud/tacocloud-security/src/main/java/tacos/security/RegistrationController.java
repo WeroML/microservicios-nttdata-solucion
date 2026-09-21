@@ -6,6 +6,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import tacos.data.UserRepository;
 
+import reactor.core.publisher.Mono;
+
 @Controller
 @RequestMapping("/register")
 public class RegistrationController {
@@ -25,9 +27,13 @@ public class RegistrationController {
   }
   
   @PostMapping
-  public String processRegistration(RegistrationForm form) {
-    userRepo.save(form.toUser(passwordEncoder));
-    return "redirect:/login";
+  public Mono<String> processRegistration(RegistrationForm form) {
+    return userRepo.findByUsername(form.getUsername())
+        .flatMap(existing -> Mono.<String>error(new IllegalStateException("Username already exists")))
+        .switchIfEmpty(
+            userRepo.save(form.toUser(passwordEncoder))
+                .map(user -> "redirect:/login")
+        );
   }
 
 }

@@ -29,6 +29,26 @@ http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <!-- end::bootAdminVersion[] -->
 
   <dependencies>
+        <dependency>
+            <groupId>sia</groupId>
+            <artifactId>tacocloud-messaging-noop</artifactId>
+            <version>0.0.17-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>sia</groupId>
+            <artifactId>tacocloud-messaging-jms</artifactId>
+            <version>0.0.17-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>sia</groupId>
+            <artifactId>tacocloud-messaging-kafka</artifactId>
+            <version>0.0.17-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>sia</groupId>
+            <artifactId>tacocloud-messaging-rabbitmq</artifactId>
+            <version>0.0.17-SNAPSHOT</version>
+        </dependency>
     <!-- TacoCloud dependencies -->
     <dependency>
       <groupId>sia</groupId>
@@ -138,6 +158,26 @@ http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <!-- tag::bootAdminDependencyManagement[] -->
   <dependencyManagement>
     <dependencies>
+        <dependency>
+            <groupId>sia</groupId>
+            <artifactId>tacocloud-messaging-noop</artifactId>
+            <version>0.0.17-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>sia</groupId>
+            <artifactId>tacocloud-messaging-jms</artifactId>
+            <version>0.0.17-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>sia</groupId>
+            <artifactId>tacocloud-messaging-kafka</artifactId>
+            <version>0.0.17-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>sia</groupId>
+            <artifactId>tacocloud-messaging-rabbitmq</artifactId>
+            <version>0.0.17-SNAPSHOT</version>
+        </dependency>
       <dependency>
         <groupId>de.codecentric</groupId>
         <artifactId>spring-boot-admin-dependencies</artifactId>
