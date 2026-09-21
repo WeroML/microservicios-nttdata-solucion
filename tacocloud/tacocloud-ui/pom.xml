@@ -17,8 +17,7 @@
 	<description>Taco Cloud UI</description>
 
   <properties>
-      <node.version>v12.22.9</node.version>
-      <npm.version>6.14.15</npm.version>
+      <node.version>v6.9.1</node.version>
       <yarn.version>v0.24.6</yarn.version>
       <frontend-maven-plugin.version>1.4</frontend-maven-plugin.version>
       <environment>dev</environment>
@@ -50,47 +49,52 @@
       </plugin>
 
       <plugin>
-        <groupId>com.github.eirslett</groupId>
-        <artifactId>frontend-maven-plugin</artifactId>
-        <version>${frontend-maven-plugin.version}</version>
-        <executions>
-          <execution>
-            <id>install node and npm</id>
-            <goals>
-              <goal>install-node-and-npm</goal>
-            </goals>
-            <configuration>
-              <nodeVersion>${node.version}</nodeVersion>
-              <npmVersion>${npm.version}</npmVersion>
-            </configuration>
-          </execution>
-          <execution>
-            <id>npm install</id>
-            <goals>
-              <goal>npm</goal>
-            </goals>
-            <configuration>
-              <arguments>install</arguments>
-            </configuration>
-          </execution>
-          <execution>
-            <id>build</id>
-            <goals>
-              <goal>npm</goal>
-            </goals>
-            <configuration>
-              <arguments>run-script build</arguments>
-            </configuration>
-            <phase>generate-resources</phase>
-          </execution>
-        </executions>
+          <groupId>com.github.eirslett</groupId>
+          <artifactId>frontend-maven-plugin</artifactId>
+          <!-- 1. Actualiza a una versión moderna del plugin -->
+          <version>1.15.0</version>
+          <executions>
+              <execution>
+                  <id>install node and npm</id>
+                  <goals>
+                      <goal>install-node-and-npm</goal>
+                  </goals>
+                  <configuration>
+                      <!-- 2. Usa una versión de Node compatible con tu procesador -->
+                      <nodeVersion>v16.20.2</nodeVersion> 
+                  </configuration>
+              </execution>
+              
+              <execution>
+                  <id>npm install</id>
+                  <goals>
+                      <goal>npm</goal>
+                  </goals>
+                  <configuration>
+                      <!-- 3. Mantén el arreglo que hicimos previamente -->
+                      <arguments>install --legacy-peer-deps</arguments>
+                  </configuration>
+              </execution>
+              
+              <execution>
+                  <id>npm build</id>
+                  <goals>
+                      <goal>npm</goal>
+                  </goals>
+                  <configuration>
+                      <arguments>run build</arguments>
+                  </configuration>
+              </execution>
+          </executions>
       </plugin>
+
       <plugin>
         <artifactId>maven-resources-plugin</artifactId>
         <configuration>
-          <outputDirectory> ${project.build.outputDirectory}\static</outputDirectory>
+          <outputDirectory>${project.build.outputDirectory}/static</outputDirectory>
         </configuration>
       </plugin>
+      
     </plugins>
   </build>
 </project>
