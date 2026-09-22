@@ -1,4 +1,4 @@
-import { Component, OnInit, Input } from '@angular/core';
+import { Component, OnInit, Input, Output, EventEmitter } from '@angular/core';
 
 @Component({
   selector: 'little-button',
@@ -9,8 +9,13 @@ import { Component, OnInit, Input } from '@angular/core';
 export class LittleButtonComponent implements OnInit {
 
   @Input() label: String;
+  @Output() action = new EventEmitter();
 
   constructor() { }
 
   ngOnInit() { }
+
+  onClick() {
+    this.action.emit();
+  }
 }

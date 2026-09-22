@@ -17,6 +17,6 @@
         </div>
         <div *ngIf="(taco.ingredients | wraps)?.length == 0">in a bowl</div>
       </div>
-      <little-button label="Order this taco"></little-button>
+      <little-button label="Order this taco" (action)="orderTaco(taco)"></little-button>
   </div>
 </div>

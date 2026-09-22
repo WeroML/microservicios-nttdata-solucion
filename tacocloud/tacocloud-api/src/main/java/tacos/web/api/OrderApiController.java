@@ -161,6 +161,7 @@ public class OrderApiController {
   }
 
   @PutMapping(path="/{orderId}", consumes="application/json")
+  @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
   public Mono<ResponseEntity<tacos.api.dto.OrderResponse>> putOrder(@PathVariable("orderId") String orderId, @javax.validation.Valid @RequestBody tacos.api.dto.OrderCreateRequest order) {
     return orderService.createOrderFromRequest(order)
         .flatMap(newOrder -> repo.findById(orderId)
@@ -204,6 +205,7 @@ public class OrderApiController {
   }
 
   @DeleteMapping("/{orderId}")
+  @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
   public Mono<ResponseEntity<Void>> deleteOrder(@PathVariable("orderId") String orderId) {
     return repo.findById(orderId)
         .flatMap(existing -> repo.deleteById(orderId)

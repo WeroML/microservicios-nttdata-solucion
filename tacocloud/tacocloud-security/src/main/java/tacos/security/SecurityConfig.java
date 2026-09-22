@@ -30,6 +30,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
       .authorizeRequests()
         .antMatchers(HttpMethod.OPTIONS).permitAll() // needed for Angular/CORS
         .antMatchers(HttpMethod.GET, "/api/**tacos/**", "/api/**ingredients/**").permitAll()
+        .antMatchers(HttpMethod.POST, "/api/**tacos/**").permitAll()
         .antMatchers("/api/**ingredients/**").hasRole("ADMIN")
         .antMatchers("/api/**kitchen/**").hasRole("KITCHEN")
         .antMatchers("/api/**orders/**").hasRole("USER")

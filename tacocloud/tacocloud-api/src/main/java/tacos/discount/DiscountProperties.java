@@ -19,8 +19,8 @@ public class DiscountProperties {
     public static class Coupon {
         private Type type;
         private BigDecimal amount; // Percentage (e.g. 0.20) or Fixed (e.g. 5.00)
-        private LocalDate validFrom;
-        private LocalDate validUntil;
+        private @org.springframework.format.annotation.DateTimeFormat(pattern="yyyy-MM-dd") LocalDate validFrom;
+        private @org.springframework.format.annotation.DateTimeFormat(pattern="yyyy-MM-dd") LocalDate validUntil;
         private BigDecimal minPurchase = BigDecimal.ZERO;
         private BigDecimal maxDiscount; // Max discount allowed for percentage
     }

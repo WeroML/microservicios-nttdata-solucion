@@ -1,32 +1,35 @@
 package tacos.web.api;
 
 import org.springframework.stereotype.Component;
-import org.springframework.web.server.ServerWebExchange;
-import org.springframework.web.server.WebFilter;
-import org.springframework.web.server.WebFilterChain;
-import reactor.core.publisher.Mono;
+
+import javax.servlet.Filter;
+import javax.servlet.FilterChain;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
 
 @Component
-public class ApiVersioningFilter implements WebFilter {
+public class ApiVersioningFilter implements Filter {
 
     @Override
-    public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
-        String path = exchange.getRequest().getURI().getPath();
+    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
+            throws IOException, ServletException {
         
-        // If they use the legacy /api path (but not /api/v1)
+        HttpServletRequest httpRequest = (HttpServletRequest) request;
+        HttpServletResponse httpResponse = (HttpServletResponse) response;
+        String path = httpRequest.getRequestURI();
+        
         if (path.startsWith("/api/") && !path.startsWith("/api/v1/")) {
-            exchange.getResponse().getHeaders().add("Warning", "299 - \"Deprecated API: Please migrate to /api/v1\"");
+            httpResponse.addHeader("Warning", "299 - \"Deprecated API: Please migrate to /api/v1\"");
             
-            // To seamlessly support it without rewriting all controllers, we could rewrite the request path
-            // But actually we just map controllers to both, or we can use ServerWebExchange mutation.
-            ServerWebExchange mutated = exchange.mutate()
-                .request(exchange.getRequest().mutate()
-                    .path(path.replaceFirst("/api/", "/api/v1/"))
-                    .build())
-                .build();
-            return chain.filter(mutated);
+            String newPath = path.replaceFirst("/api/", "/api/v1/");
+            httpRequest.getRequestDispatcher(newPath).forward(request, response);
+            return;
         }
         
-        return chain.filter(exchange);
+        chain.doFilter(request, response);
     }
 }

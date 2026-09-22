@@ -10,7 +10,7 @@ import java.util.Map;
 import java.util.Collections;
 
 @RestController
-@RequestMapping(path="/api/tacos/validate", produces="application/json")
+@RequestMapping(path="/api/v1/tacos/validate", produces="application/json")
 public class TacoValidationController {
 
     private final TacoValidatorService validatorService;

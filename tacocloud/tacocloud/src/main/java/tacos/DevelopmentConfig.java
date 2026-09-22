@@ -72,7 +72,7 @@ public class DevelopmentConfig {
         ingredient.setAvailable(true);
         ingredient.setStockOnHand(100);
         ingredient.setReorderLevel(10);
-        ingredient.setVersion(0L);
+        // ingredient.setVersion(0L);
         repo.save(ingredient).subscribe();
         return ingredient;
       }

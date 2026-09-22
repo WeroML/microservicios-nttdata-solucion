@@ -7,10 +7,19 @@ taco:
   orders:
     pageSize: 10
 
+tacocloud:
+  messaging:
+    transport: noop
+
 
   discount:
     codes:
-      abcdef: 10
+      abcdef:
+        type: PERCENTAGE
+        amount: 0.10
+        validFrom: "2023-01-01"
+        validUntil: "2030-12-31"
+        minPurchase: 0.0
 
 
 
@@ -96,10 +105,9 @@ spring:
     username: tacouser
     password: tacopassword
 
-logging:
-  level:
-    tacos: WARN
 
 logging:
   pattern:
     console: "%clr(%d{${LOG_DATEFORMAT_PATTERN:-yyyy-MM-dd HH:mm:ss.SSS}}){faint} %clr(${LOG_LEVEL_PATTERN:-%5p}) %clr(${PID:- }){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} [cid:%X{correlationId}] %m%n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}"
+  level:
+    tacos: WARN
