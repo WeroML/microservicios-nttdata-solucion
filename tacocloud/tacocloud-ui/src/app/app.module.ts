@@ -29,6 +29,8 @@ import { HttpClientModule } from '@angular/common/http';
 import { OAuthModule } from 'angular-oauth2-oidc';
 import { CartComponent } from './cart/cart.component';
 import { CartService } from './cart/cart-service';
+import { FavoritesComponent } from './favorites/favorites.component';
+import { OrdersHistoryComponent } from './orders-history/orders-history.component';
 
 @NgModule({
   declarations: [
@@ -48,6 +50,8 @@ import { CartService } from './cart/cart-service';
     GroupBoxComponent,
     BigButtonComponent,
     LittleButtonComponent,
+    FavoritesComponent,
+    OrdersHistoryComponent,
   ],
   imports: [
     BrowserModule,

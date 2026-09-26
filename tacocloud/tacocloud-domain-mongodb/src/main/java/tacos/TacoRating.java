@@ -1,13 +1,16 @@
 package tacos;
 
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
+import java.time.Instant;
+
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.mapping.Document;
-import java.time.Instant;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+// TC-22: un voto por usuario y taco, garantizado por índice único.
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -18,6 +21,7 @@ public class TacoRating {
     private String id;
     private String userId;
     private String tacoId;
-    private int score; // 1 to 5
-    private Instant createdAt = Instant.now();
+    private int score;
+    private Instant createdAt;
+    private Instant updatedAt;
 }

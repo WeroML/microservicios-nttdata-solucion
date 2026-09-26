@@ -1,0 +1,11 @@
+<cloud-title>My favorite tacos</cloud-title>
+
+<p *ngIf="favorites.length == 0">You have no favorite tacos yet. Mark some in
+  <a [routerLink]="['../recents']">the latest designs</a>.</p>
+
+<ul>
+  <li *ngFor="let favorite of favorites">
+    {{favorite.tacoName}}
+    <button (click)="remove(favorite)">Remove</button>
+  </li>
+</ul>

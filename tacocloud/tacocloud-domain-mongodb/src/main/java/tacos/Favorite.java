@@ -1,13 +1,16 @@
 package tacos;
 
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
+import java.time.Instant;
+
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.mapping.Document;
-import java.time.Instant;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+// TC-21: sólo IDs, nunca el objeto User completo.
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -18,5 +21,5 @@ public class Favorite {
     private String id;
     private String userId;
     private String tacoId;
-    private Instant createdAt = Instant.now();
+    private Instant createdAt;
 }

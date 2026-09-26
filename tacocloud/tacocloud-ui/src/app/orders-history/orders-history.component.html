@@ -1,0 +1,21 @@
+<cloud-title>My orders</cloud-title>
+
+<p *ngIf="orders.length == 0">You have not placed any orders yet.</p>
+
+<table border="1" width="90%" *ngIf="orders.length > 0">
+  <thead>
+    <tr><td>Order</td><td>Placed at</td><td>Status</td><td>Tacos</td><td>Total</td></tr>
+  </thead>
+  <tbody>
+    <tr *ngFor="let order of orders">
+      <td>{{order.id}}</td>
+      <td>{{order.placedAt | date:'medium'}}</td>
+      <td>{{order.status}}</td>
+      <td>{{order.itemCount}}</td>
+      <td align="right">{{order.total | currency:order.currency}}</td>
+    </tr>
+  </tbody>
+</table>
+
+<button *ngIf="page > 0" (click)="load(page - 1)">Previous</button>
+<button *ngIf="hasNext" (click)="load(page + 1)">Next</button>

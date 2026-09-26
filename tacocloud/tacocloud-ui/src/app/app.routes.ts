@@ -7,6 +7,8 @@ import { DesignComponent } from './design/design.component';
 import { LocationsComponent } from './locations/locations.component';
 import { CartComponent } from './cart/cart.component';
 import { LoginComponent } from './login/login.component';
+import { FavoritesComponent } from './favorites/favorites.component';
+import { OrdersHistoryComponent } from './orders-history/orders-history.component';
 
 export const routes: Routes = [
   {
@@ -36,6 +38,14 @@ export const routes: Routes = [
   {
     path: 'cart',
     component: CartComponent
+  },
+  {
+    path: 'favorites',
+    component: FavoritesComponent
+  },
+  {
+    path: 'orders-history',
+    component: OrdersHistoryComponent
   },
   {
     path: '**',

@@ -1,34 +1,40 @@
 package tacos.validation;
 
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import reactor.core.publisher.Mono;
-import tacos.Taco;
-
 import java.util.List;
-import java.util.Map;
-import java.util.Collections;
+
+import javax.validation.Valid;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import reactor.core.publisher.Mono;
+import tacos.api.dto.TacoRequest;
+import tacos.api.dto.TacoValidationResponse;
 
 @RestController
-@RequestMapping(path="/api/v1/tacos/validate", produces="application/json")
+@RequestMapping(path={"/api/v1/tacos/validate", "/api/tacos/validate"}, produces="application/json")
 public class TacoValidationController {
 
-    private final TacoValidatorService validatorService;
+    private final TacoDesignService designService;
 
-    public TacoValidationController(TacoValidatorService validatorService) {
-        this.validatorService = validatorService;
+    public TacoValidationController(TacoDesignService designService) {
+        this.designService = designService;
     }
 
-    @PostMapping
-    public Mono<ResponseEntity<Map<String, List<String>>>> validateTaco(@RequestBody Taco taco) {
-        List<String> errors = validatorService.validate(taco);
-        
-        if (errors.isEmpty()) {
-            return Mono.just(ResponseEntity.ok(Collections.singletonMap("errors", Collections.emptyList())));
-        } else {
-            // "Retornar violaciones ordenadas en /api/tacos/validate impidiendo guardado inválido."
-            // We return 400 Bad Request or 422 Unprocessable Entity with the errors.
-            return Mono.just(ResponseEntity.unprocessableEntity().body(Collections.singletonMap("errors", errors)));
+    // 200 si el diseño es válido; 422 con todas las violaciones si no. Nunca guarda.
+    @PostMapping(consumes="application/json")
+    public Mono<ResponseEntity<TacoValidationResponse>> validateTaco(@Valid @RequestBody TacoRequest request) {
+        return designService.validate(request)
+            .map(this::toResponse);
+    }
+
+    private ResponseEntity<TacoValidationResponse> toResponse(List<RuleViolation> violations) {
+        if (violations.isEmpty()) {
+            return ResponseEntity.ok(new TacoValidationResponse(true, violations));
         }
+        return ResponseEntity.unprocessableEntity().body(new TacoValidationResponse(false, violations));
     }
 }

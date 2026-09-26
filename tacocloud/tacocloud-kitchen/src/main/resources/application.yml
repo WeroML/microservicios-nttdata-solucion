@@ -1,38 +1,52 @@
 server:
   port: 8081
 
----
+# TC-28: el transporte se elige por propiedad (rabbit|jms|kafka), no por perfil ni POM.
+# Credenciales y URIs siempre por variables de ambiente, nunca en Git.
+tacocloud:
+  messaging:
+    transport: ${TACOCLOUD_MESSAGING_TRANSPORT:rabbit}
+    rabbit:
+      queue: tacocloud.order.queue
+      dead-letter-queue: tacocloud.order.dlq
+    jms:
+      destination: tacocloud.order.queue
+    kafka:
+      topic: tacocloud.orders.topic
+  kitchen:
+    retry:
+      max-attempts: 3
+      initial-interval: 500ms
+      multiplier: 2.0
+      max-interval: 5s
+  api:
+    base-url: ${TACOCLOUD_API_URL:http://localhost:8080}
+    username: ${TACOCLOUD_KITCHEN_USERNAME:}
+    password: ${TACOCLOUD_KITCHEN_PASSWORD:}
+
 spring:
-  profiles: jms-template, jms-listener
-# The values given here are actually the default values. But they are explicitly
-# set here as an example of setting the Artemis properties.
-  jms:
-    template:
-      receive-timeout: 2
+  data:
+    mongodb:
+      uri: ${KITCHEN_MONGODB_URI:mongodb://localhost:27017/tacokitchen}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
   artemis:
-    host: localhost
-    port: 61616
-    user: tacoweb
-    password: letm31n
-    embedded:
-      enabled: false
-    
----
-spring:
-  profiles: kafka-listener
-    
+    host: ${ARTEMIS_HOST:localhost}
+    port: ${ARTEMIS_PORT:61616}
+    user: ${ARTEMIS_USER:}
+    password: ${ARTEMIS_PASSWORD:}
   kafka:
-    bootstrap-servers:
-    - localhost:9092
-    template:
-      default-topic: tacocloud.orders.topic
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     consumer:
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       group-id: tacocloud_kitchen
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
-        spring.json.trusted.packages: tacos
-      
-      
-      
-      
-      
+        spring.json.trusted.packages: tacos.messaging.contract
+        spring.json.value.default.type: tacos.messaging.contract.OrderEvent
+
+logging:
+  pattern:
+    console: "%clr(%d{${LOG_DATEFORMAT_PATTERN:-yyyy-MM-dd HH:mm:ss.SSS}}){faint} %clr(${LOG_LEVEL_PATTERN:-%5p}) %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} [cid:%X{correlationId}] %m%n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}"

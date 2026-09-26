@@ -1,51 +1,1042 @@
 openapi: 3.0.3
 info:
-  title: TacoCloud API
+  title: Taco Cloud API
   version: "1.0.0"
-  description: API for TacoCloud application.
+  description: |
+    Contrato público v1 de Taco Cloud (TC-35).
+
+    Versionado y deprecación: el contrato vigente vive en /api/v1. El alias legado
+    /api sigue respondiendo igual durante la transición, pero cada respuesta del alias
+    incluye los headers `Deprecation: true`, `Link: </api/v1/...>; rel="successor-version"`
+    y `Warning: 299`. Los clientes deben migrar a /api/v1.
+
+    Errores: todas las respuestas 4xx/5xx controladas usan `application/problem+json`
+    con el schema ApiProblem. Política: 400 formato/validación, 401 sin autenticación,
+    403 sin permiso, 404 no existe (o no es del usuario en rutas /users/me), 409 conflicto
+    con el estado actual, 422 regla de negocio, 500 error inesperado sin detalles internos.
+
+    Seguridad: HTTP Basic. Roles USER, ADMIN y KITCHEN (ver SecurityConfig).
 servers:
   - url: /api/v1
-    description: v1 API
+    description: Contrato vigente
   - url: /api
-    description: Legacy API (Deprecated)
+    description: Alias legado (obsoleto)
+
+security:
+  - basicAuth: []
+
+tags:
+  - name: ingredients
+  - name: tacos
+  - name: orders
+  - name: users-me
+  - name: kitchen
+  - name: admin
+  - name: coupons
+  - name: payment-methods
+  - name: announcements
+
 paths:
-  /orders:
+  /ingredients:
+    get:
+      tags: [ingredients]
+      summary: Catálogo público de ingredientes
+      security: []
+      responses:
+        '200':
+          description: Ingredientes
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/IngredientResponse' }
     post:
-      summary: Creates an order
-      parameters:
-        - in: header
-          name: Idempotency-Key
-          schema:
-            type: string
-          required: false
-        - in: header
-          name: X-Correlation-Id
-          schema:
-            type: string
-          required: false
+      tags: [ingredients]
+      summary: Crear ingrediente (ADMIN)
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              type: object
-              properties:
-                deliveryName:
-                  type: string
-                items:
-                  type: array
-                  items:
-                    type: object
+            schema: { $ref: '#/components/schemas/IngredientRequest' }
       responses:
         '201':
-          description: Created
-        '400':
-          description: Bad Request
-        '409':
-          description: Conflict (Idempotency Key duplicate)
-  /tacos:
+          description: Creado
+          headers:
+            Location:
+              description: URI del ingrediente creado
+              schema: { type: string, format: uri }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminIngredientResponse' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+
+  /ingredients/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
     get:
-      summary: Get tacos
+      tags: [ingredients]
+      security: []
       responses:
         '200':
-          description: OK
+          description: Ingrediente
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IngredientResponse' }
+        '404': { $ref: '#/components/responses/Problem' }
+    put:
+      tags: [ingredients]
+      summary: Actualizar ingrediente (ADMIN). El id del body debe coincidir con el de la ruta.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IngredientRequest' }
+      responses:
+        '200':
+          description: Actualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminIngredientResponse' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+    delete:
+      tags: [ingredients]
+      summary: Eliminar ingrediente (ADMIN). Una segunda eliminación responde 404.
+      responses:
+        '204': { description: Eliminado }
+        '404': { $ref: '#/components/responses/Problem' }
+
+  /admin/ingredients/{id}/catalog:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    patch:
+      tags: [admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IngredientCatalogPatchRequest' }
+      responses:
+        '200':
+          description: Catálogo actualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminIngredientResponse' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+
+  /admin/ingredients/{id}/stock-adjustments:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    post:
+      tags: [admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IngredientStockAdjustmentRequest' }
+      responses:
+        '200':
+          description: Stock ajustado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminIngredientResponse' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+
+  /tacos:
+    get:
+      tags: [tacos]
+      summary: Buscar, filtrar, ordenar y paginar tacos
+      security: []
+      parameters:
+        - { name: name, in: query, schema: { type: string, maxLength: 50 } }
+        - { name: ingredientId, in: query, schema: { type: string } }
+        - { name: diet, in: query, schema: { $ref: '#/components/schemas/DietaryTag' } }
+        - name: excludeAllergen
+          in: query
+          schema:
+            type: array
+            items: { $ref: '#/components/schemas/Allergen' }
+        - { name: spice, in: query, schema: { $ref: '#/components/schemas/SpiceLevel' } }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - name: sort
+          in: query
+          description: "campo,dirección. Campos: createdAt, name. Desempate por id."
+          schema: { type: string, default: "createdAt,desc" }
+      responses:
+        '200':
+          description: Página de tacos
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TacoPage' }
+        '400': { $ref: '#/components/responses/Problem' }
+    post:
+      tags: [tacos]
+      summary: Diseñar un taco (USER). Se valida con las reglas de diseño antes de guardar.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TacoRequest' }
+      responses:
+        '201':
+          description: Taco creado
+          headers:
+            Location:
+              schema: { type: string, format: uri }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TacoResponse' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+
+  /tacos/validate:
+    post:
+      tags: [tacos]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TacoRequest' }
+      responses:
+        '200':
+          description: Diseño válido
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TacoValidationResponse' }
+        '422':
+          description: Diseño inválido con todas sus violaciones
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TacoValidationResponse' }
+
+  /tacos/today:
+    get:
+      tags: [tacos]
+      security: []
+      responses:
+        '200':
+          description: Taco del día
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TacoOfTheDayResponse' }
+        '404': { $ref: '#/components/responses/Problem' }
+
+  /tacos/top:
+    get:
+      tags: [tacos]
+      security: []
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 10 } }
+      responses:
+        '200':
+          description: Ranking (sólo tacos con el mínimo de votos configurado)
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/TacoRankingResponse' }
+        '400': { $ref: '#/components/responses/Problem' }
+
+  /tacos/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    get:
+      tags: [tacos]
+      security: []
+      responses:
+        '200':
+          description: Taco
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TacoResponse' }
+        '404': { $ref: '#/components/responses/Problem' }
+
+  /tacos/{id}/classification:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    get:
+      tags: [tacos]
+      security: []
+      responses:
+        '200':
+          description: Clasificación derivada de los ingredientes
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ClassificationResponse' }
+        '404': { $ref: '#/components/responses/Problem' }
+
+  /tacos/{id}/rating:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    put:
+      tags: [tacos]
+      summary: Calificar un taco (USER). Repetir el PUT cambia el voto propio.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RatingRequest' }
+      responses:
+        '204': { description: Voto registrado }
+        '400': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+
+  /orders:
+    post:
+      tags: [orders]
+      summary: Crear una orden (USER)
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrderCreateRequest' }
+            example:
+              deliveryName: Craig Walls
+              deliveryStreet: 123 North Street
+              deliveryCity: Cross Roads
+              deliveryState: TX
+              deliveryZip: "76227"
+              paymentMethodId: 6ab6f68e7d10f1319c705cc1
+              discountCode: ABCDEF
+              items:
+                - taco: { name: Classic, ingredientIds: [FLTO, GRBF, CHED] }
+                  quantity: 2
+      responses:
+        '201':
+          description: Orden creada
+          headers:
+            X-Correlation-Id: { $ref: '#/components/headers/CorrelationId' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderResponse' }
+        '200':
+          description: Repetición con la misma Idempotency-Key; se devuelve la misma orden
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderResponse' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+
+  /orders/quote:
+    post:
+      tags: [orders]
+      summary: Cotizar sin crear la orden
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrderCreateRequest' }
+      responses:
+        '200':
+          description: Cotización
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderResponse' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+
+  /orders/fromEmail:
+    post:
+      tags: [orders]
+      summary: Orden recibida por correo (cuenta de integración ADMIN)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EmailOrder' }
+      responses:
+        '201':
+          description: Orden creada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderResponse' }
+        '422': { $ref: '#/components/responses/Problem' }
+
+  /orders/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    put:
+      tags: [orders]
+      summary: Reemplazar una orden CREATED propia (o ADMIN). No cambia id, dueño, fecha ni pago.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrderCreateRequest' }
+      responses:
+        '200':
+          description: Orden reemplazada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderResponse' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+    patch:
+      tags: [orders]
+      summary: Editar datos de entrega. Cualquier otro campo responde 400.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrderPatchRequest' }
+      responses:
+        '200':
+          description: Orden actualizada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderResponse' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+    delete:
+      tags: [orders]
+      summary: Cancela la orden (no hay borrado físico). Sólo antes de PREPARING.
+      responses:
+        '204': { description: Cancelada }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+
+  /orders/{id}/cancel:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    post:
+      tags: [orders]
+      parameters:
+        - { name: reason, in: query, schema: { type: string, maxLength: 200 } }
+      responses:
+        '200':
+          description: Cancelada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderResponse' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+
+  /orders/{id}/status:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    patch:
+      tags: [orders]
+      summary: Cambio de estado (KITCHEN o ADMIN) según la máquina de estados
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrderStatusUpdateRequest' }
+      responses:
+        '200':
+          description: Estado actualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderResponse' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+
+  /orders/{id}/reorder:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    post:
+      tags: [orders]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReorderRequest' }
+      responses:
+        '201':
+          description: Nueva orden confirmada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReorderResponse' }
+        '409':
+          description: Cotización con diferencias; repetir con confirmPriceChange=true
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReorderResponse' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+
+  /users/me/orders:
+    get:
+      tags: [users-me]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Historial propio, más reciente primero
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderSummaryPage' }
+        '400': { $ref: '#/components/responses/Problem' }
+
+  /users/me/orders/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    get:
+      tags: [users-me]
+      responses:
+        '200':
+          description: Detalle seguro
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderResponse' }
+        '404': { $ref: '#/components/responses/Problem' }
+
+  /users/me/favorites:
+    get:
+      tags: [users-me]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Favoritos propios
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FavoritePage' }
+
+  /users/me/favorites/{tacoId}:
+    parameters:
+      - { name: tacoId, in: path, required: true, schema: { type: string } }
+    put:
+      tags: [users-me]
+      summary: Marcar favorito (idempotente)
+      responses:
+        '204': { description: Es favorito }
+        '404': { $ref: '#/components/responses/Problem' }
+    delete:
+      tags: [users-me]
+      summary: Quitar favorito (idempotente)
+      responses:
+        '204': { description: No es favorito }
+
+  /admin/orders:
+    get:
+      tags: [admin]
+      parameters:
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/OrderStatus' } }
+        - { name: userId, in: query, schema: { type: string } }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Consulta global (ADMIN)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderSummaryPage' }
+
+  /kitchen/queue:
+    get:
+      tags: [kitchen]
+      responses:
+        '200':
+          description: Órdenes CREATED en orden FIFO con ETA
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/KitchenOrderResponse' }
+
+  /kitchen/orders/claim:
+    post:
+      tags: [kitchen]
+      responses:
+        '200':
+          description: Orden reclamada (ACCEPTED)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KitchenOrderResponse' }
+        '204': { description: Cola vacía }
+        '409': { $ref: '#/components/responses/Problem' }
+
+  /coupons/validate:
+    post:
+      tags: [coupons]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CouponValidationRequest' }
+      responses:
+        '200':
+          description: Resultado sin revelar si el código existe
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CouponValidationResponse' }
+        '400': { $ref: '#/components/responses/Problem' }
+
+  /payment-methods:
+    get:
+      tags: [payment-methods]
+      responses:
+        '200':
+          description: Métodos de pago propios (sólo brand/last4)
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/PaymentMethodResponse' }
+
+  /payment-methods/tokenize:
+    post:
+      tags: [payment-methods]
+      summary: Tokenización simulada; PAN y CVV nunca se guardan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PaymentTokenizeRequest' }
+      responses:
+        '201':
+          description: Método tokenizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaymentMethodResponse' }
+        '400': { $ref: '#/components/responses/Problem' }
+
+  /announcements:
+    get:
+      tags: [announcements]
+      responses:
+        '200':
+          description: Anuncios vigentes
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/AnnouncementResponse' }
+
+  /admin/announcements:
+    post:
+      tags: [announcements]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AnnouncementRequest' }
+      responses:
+        '201':
+          description: Anuncio creado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnnouncementResponse' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+
+  /admin/announcements/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    delete:
+      tags: [announcements]
+      responses:
+        '204': { description: Eliminado }
+        '404': { $ref: '#/components/responses/Problem' }
+
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+
+  parameters:
+    IdPath:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 0, default: 0 }
+    Size:
+      name: size
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: Llave por usuario; misma llave y mismo request devuelven la misma orden (200), request distinto 409.
+      schema: { type: string, pattern: '^[A-Za-z0-9_-]{8,64}$' }
+    CorrelationId:
+      name: X-Correlation-Id
+      in: header
+      required: false
+      description: Si falta o es inválido, el servidor genera un UUID.
+      schema: { type: string, pattern: '^[A-Za-z0-9._-]{1,64}$' }
+
+  headers:
+    CorrelationId:
+      description: Correlation id de la petición
+      schema: { type: string }
+
+  responses:
+    Problem:
+      description: Error con estructura ApiProblem
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ApiProblem' }
+
+  schemas:
+    ApiProblem:
+      type: object
+      required: [type, title, status, instance, code]
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+        code: { type: string }
+        correlationId: { type: string }
+        violations:
+          type: array
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              code: { type: string }
+              message: { type: string }
+
+    DietaryTag:
+      type: string
+      enum: [VEGAN, VEGETARIAN, GLUTEN_FREE]
+    Allergen:
+      type: string
+      enum: [DAIRY, SOY, WHEAT, NUTS, EGGS]
+    SpiceLevel:
+      type: string
+      enum: [NONE, MILD, MEDIUM, HOT, GHOST_PEPPER]
+    IngredientType:
+      type: string
+      enum: [WRAP, PROTEIN, VEGGIES, CHEESE, SAUCE]
+    OrderStatus:
+      type: string
+      enum: [CREATED, ACCEPTED, PREPARING, READY, OUT_FOR_DELIVERY, DELIVERED, CANCELLED]
+
+    IngredientRequest:
+      type: object
+      required: [name, type, unitPrice]
+      properties:
+        id: { type: string, description: "Sólo en PUT; debe coincidir con la ruta" }
+        name: { type: string, maxLength: 50 }
+        type: { $ref: '#/components/schemas/IngredientType' }
+        unitPrice: { type: number, minimum: 0 }
+        available: { type: boolean }
+        stockOnHand: { type: integer, minimum: 0, description: "Sólo al crear" }
+        reorderLevel: { type: integer, minimum: 0 }
+        version: { type: integer, format: int64 }
+    IngredientResponse:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        type: { $ref: '#/components/schemas/IngredientType' }
+        unitPrice: { type: number }
+        available: { type: boolean }
+        dietaryTags: { type: array, items: { $ref: '#/components/schemas/DietaryTag' } }
+        allergens: { type: array, items: { $ref: '#/components/schemas/Allergen' } }
+        spiceLevel: { $ref: '#/components/schemas/SpiceLevel' }
+    AdminIngredientResponse:
+      allOf:
+        - $ref: '#/components/schemas/IngredientResponse'
+        - type: object
+          properties:
+            stockOnHand: { type: integer }
+            reorderLevel: { type: integer }
+            version: { type: integer, format: int64 }
+    IngredientCatalogPatchRequest:
+      type: object
+      properties:
+        unitPrice: { type: number, minimum: 0 }
+        available: { type: boolean }
+    IngredientStockAdjustmentRequest:
+      type: object
+      required: [amount]
+      properties:
+        amount: { type: integer }
+
+    TacoRequest:
+      type: object
+      required: [name, ingredientIds]
+      properties:
+        name: { type: string, minLength: 5, maxLength: 50 }
+        ingredientIds:
+          type: array
+          minItems: 1
+          items: { type: string }
+    TacoResponse:
+      type: object
+      properties:
+        id: { type: string, nullable: true }
+        name: { type: string }
+        createdAt: { type: string, format: date-time }
+        ingredients: { type: array, items: { $ref: '#/components/schemas/IngredientResponse' } }
+        dietaryTags: { type: array, items: { $ref: '#/components/schemas/DietaryTag' } }
+        allergens: { type: array, items: { $ref: '#/components/schemas/Allergen' } }
+        spiceLevel: { $ref: '#/components/schemas/SpiceLevel' }
+    TacoPage:
+      type: object
+      properties:
+        content: { type: array, items: { $ref: '#/components/schemas/TacoResponse' } }
+        page: { type: integer }
+        size: { type: integer }
+        hasNext: { type: boolean }
+    RuleViolation:
+      type: object
+      properties:
+        code: { type: string }
+        message: { type: string }
+    TacoValidationResponse:
+      type: object
+      properties:
+        valid: { type: boolean }
+        violations: { type: array, items: { $ref: '#/components/schemas/RuleViolation' } }
+    ClassificationResponse:
+      type: object
+      properties:
+        dietaryTags: { type: array, items: { $ref: '#/components/schemas/DietaryTag' } }
+        allergens: { type: array, items: { $ref: '#/components/schemas/Allergen' } }
+        spiceLevel: { $ref: '#/components/schemas/SpiceLevel' }
+        disclaimer: { type: string }
+    TacoOfTheDayResponse:
+      type: object
+      properties:
+        taco: { $ref: '#/components/schemas/TacoResponse' }
+        date: { type: string, format: date }
+        reason: { type: string }
+    RatingRequest:
+      type: object
+      required: [score]
+      properties:
+        score: { type: integer, minimum: 1, maximum: 5 }
+    TacoRankingResponse:
+      type: object
+      properties:
+        tacoId: { type: string }
+        tacoName: { type: string }
+        average: { type: number }
+        votes: { type: integer }
+        distribution:
+          type: object
+          additionalProperties: { type: integer }
+
+    OrderItemRequest:
+      type: object
+      required: [taco, quantity]
+      properties:
+        taco: { $ref: '#/components/schemas/TacoRequest' }
+        quantity: { type: integer, minimum: 1 }
+    OrderCreateRequest:
+      type: object
+      description: No incluye campos del servidor (id, userId, placedAt, status, precios ni total).
+      required: [deliveryName, deliveryStreet, deliveryCity, deliveryState, deliveryZip, paymentMethodId, items]
+      properties:
+        deliveryName: { type: string, maxLength: 50 }
+        deliveryStreet: { type: string, maxLength: 100 }
+        deliveryCity: { type: string, maxLength: 50 }
+        deliveryState: { type: string, pattern: '^[A-Z]{2}$' }
+        deliveryZip: { type: string, pattern: '^\d{5}$' }
+        paymentMethodId: { type: string }
+        discountCode: { type: string, maxLength: 20 }
+        items:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items: { $ref: '#/components/schemas/OrderItemRequest' }
+    OrderPatchRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        deliveryName: { type: string, maxLength: 50 }
+        deliveryStreet: { type: string, maxLength: 100 }
+        deliveryCity: { type: string, maxLength: 50 }
+        deliveryState: { type: string, pattern: '^[A-Z]{2}$' }
+        deliveryZip: { type: string, pattern: '^\d{5}$' }
+    OrderStatusUpdateRequest:
+      type: object
+      required: [status]
+      properties:
+        status: { $ref: '#/components/schemas/OrderStatus' }
+        reason: { type: string, maxLength: 200 }
+    OrderResponse:
+      type: object
+      required: [status, items, total, currency]
+      properties:
+        id: { type: string, nullable: true }
+        placedAt: { type: string, format: date-time }
+        status: { $ref: '#/components/schemas/OrderStatus' }
+        deliveryName: { type: string }
+        deliveryStreet: { type: string }
+        deliveryCity: { type: string }
+        deliveryState: { type: string }
+        deliveryZip: { type: string }
+        payment:
+          type: object
+          properties:
+            brand: { type: string }
+            last4: { type: string }
+        discountCode: { type: string, nullable: true }
+        discountAmount: { type: number }
+        currency: { type: string }
+        subtotal: { type: number }
+        total: { type: number }
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              taco: { $ref: '#/components/schemas/TacoResponse' }
+              quantity: { type: integer }
+              unitPriceAtPurchase: { type: number }
+              subtotal: { type: number }
+        statusHistory:
+          type: array
+          items:
+            type: object
+            properties:
+              status: { $ref: '#/components/schemas/OrderStatus' }
+              changedAt: { type: string, format: date-time }
+              changedBy: { type: string }
+              origin: { type: string }
+              reason: { type: string, nullable: true }
+    OrderSummaryResponse:
+      type: object
+      properties:
+        id: { type: string }
+        placedAt: { type: string, format: date-time }
+        status: { $ref: '#/components/schemas/OrderStatus' }
+        itemCount: { type: integer }
+        currency: { type: string }
+        total: { type: number }
+    OrderSummaryPage:
+      type: object
+      properties:
+        content: { type: array, items: { $ref: '#/components/schemas/OrderSummaryResponse' } }
+        page: { type: integer }
+        size: { type: integer }
+        hasNext: { type: boolean }
+    ReorderRequest:
+      type: object
+      required: [paymentMethodId]
+      properties:
+        paymentMethodId: { type: string }
+        confirmPriceChange: { type: boolean }
+    ReorderResponse:
+      type: object
+      properties:
+        confirmed: { type: boolean }
+        order: { $ref: '#/components/schemas/OrderResponse' }
+        differences: { type: array, items: { type: string } }
+    EmailOrder:
+      type: object
+      properties:
+        email: { type: string, format: email }
+        tacos:
+          type: array
+          items:
+            type: object
+            properties:
+              name: { type: string }
+              ingredients: { type: array, items: { type: string } }
+
+    FavoriteResponse:
+      type: object
+      properties:
+        tacoId: { type: string }
+        tacoName: { type: string }
+        createdAt: { type: string, format: date-time }
+    FavoritePage:
+      type: object
+      properties:
+        content: { type: array, items: { $ref: '#/components/schemas/FavoriteResponse' } }
+        page: { type: integer }
+        size: { type: integer }
+        hasNext: { type: boolean }
+
+    KitchenOrderResponse:
+      type: object
+      properties:
+        id: { type: string }
+        placedAt: { type: string, format: date-time }
+        status: { $ref: '#/components/schemas/OrderStatus' }
+        stationId: { type: string, nullable: true }
+        cookId: { type: string, nullable: true }
+        estimatedPrepMinutes: { type: integer }
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              tacoName: { type: string }
+              ingredients: { type: array, items: { type: string } }
+              quantity: { type: integer }
+
+    CouponValidationRequest:
+      type: object
+      required: [code, subtotal]
+      properties:
+        code: { type: string, maxLength: 20 }
+        subtotal: { type: number, minimum: 0 }
+    CouponValidationResponse:
+      type: object
+      properties:
+        valid: { type: boolean }
+        result: { type: string, enum: [COUPON_APPLIED, COUPON_MIN_PURCHASE_NOT_MET, COUPON_NOT_APPLICABLE] }
+        discount: { type: number }
+        total: { type: number }
+
+    PaymentTokenizeRequest:
+      type: object
+      description: Sólo tarjetas sintéticas de prueba. Estos datos nunca se guardan.
+      required: [cardNumber, expiration, cvv]
+      properties:
+        cardNumber: { type: string, pattern: '^\d{13,19}$', writeOnly: true }
+        expiration: { type: string, pattern: '^(0[1-9]|1[0-2])/\d{2}$' }
+        cvv: { type: string, pattern: '^\d{3,4}$', writeOnly: true }
+    PaymentMethodResponse:
+      type: object
+      properties:
+        id: { type: string }
+        brand: { type: string }
+        last4: { type: string }
+        expiration: { type: string }
+
+    AnnouncementRequest:
+      type: object
+      required: [text, severity]
+      properties:
+        text: { type: string, maxLength: 280 }
+        severity: { type: string, enum: [INFO, WARNING, CRITICAL] }
+        expiresAt: { type: string, format: date-time }
+    AnnouncementResponse:
+      type: object
+      properties:
+        id: { type: string }
+        text: { type: string }
+        severity: { type: string }
+        createdAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }

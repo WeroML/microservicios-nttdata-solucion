@@ -1,115 +1,78 @@
 package tacos.web.api;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import tacos.Ingredient;
-import tacos.TacoOrder;
 import tacos.PaymentMethod;
-import tacos.Taco;
+import tacos.TacoOrder;
 import tacos.User;
-import tacos.data.IngredientRepository;
+import tacos.api.dto.OrderCreateRequest;
+import tacos.api.dto.TacoRequest;
+import tacos.api.error.BusinessRuleException;
 import tacos.data.PaymentMethodRepository;
 import tacos.data.UserRepository;
-import tacos.web.api.EmailOrder.EmailTaco;
 
+/**
+ * TC-06: convierte una orden recibida por correo en una sola cadena reactiva,
+ * sin subscribe(), sin block() y sin estado mutable compartido.
+ *
+ * - Usuario y método de pago faltantes producen errores tipados (422 con código).
+ * - Los tacos se convierten en el orden en que llegaron (concatMap en OrderDraftFactory)
+ *   y la orden sólo se emite cuando todos terminaron.
+ * - El orden de ingredientes se conserva tal como vino en el correo; no afecta
+ *   precio ni reglas, sólo la presentación.
+ * - Un ID de ingrediente desconocido falla indicando cuál fue (UNKNOWN_INGREDIENT).
+ */
 @Service
 public class EmailOrderService {
 
-  private UserRepository userRepo;
-  private IngredientRepository ingredientRepo;
-  private PaymentMethodRepository paymentMethodRepo;
-  private tacos.validation.TacoValidatorService tacoValidatorService;
-  private tacos.classification.ClassificationService classificationService;
+  public static final String USER_NOT_FOUND = "EMAIL_USER_NOT_FOUND";
+  public static final String PAYMENT_METHOD_NOT_FOUND = "PAYMENT_METHOD_NOT_FOUND";
 
-  public EmailOrderService(UserRepository userRepo, IngredientRepository ingredientRepo,
-      PaymentMethodRepository paymentMethodRepo,
-      tacos.validation.TacoValidatorService tacoValidatorService,
-      tacos.classification.ClassificationService classificationService) {
+  private final UserRepository userRepo;
+  private final PaymentMethodRepository paymentMethodRepo;
+  private final OrderDraftFactory draftFactory;
+
+  public EmailOrderService(UserRepository userRepo, PaymentMethodRepository paymentMethodRepo,
+                           OrderDraftFactory draftFactory) {
     this.userRepo = userRepo;
-    this.ingredientRepo = ingredientRepo;
     this.paymentMethodRepo = paymentMethodRepo;
-    this.tacoValidatorService = tacoValidatorService;
-    this.classificationService = classificationService;
+    this.draftFactory = draftFactory;
   }
 
   public Mono<TacoOrder> convertEmailOrderToDomainOrder(Mono<EmailOrder> emailOrder) {
-    return emailOrder.flatMap(eOrder -> {
-      Mono<User> userMono = userRepo.findByEmail(eOrder.getEmail())
-          .switchIfEmpty(Mono.error(new IllegalArgumentException("User not found for email: " + eOrder.getEmail())));
+    return emailOrder.flatMap(eOrder ->
+        userRepo.findByEmail(eOrder.getEmail())
+            .switchIfEmpty(Mono.error(() -> new BusinessRuleException(USER_NOT_FOUND,
+                "No user is registered with the email of the order.")))
+            .flatMap(user -> paymentMethodRepo.findByUserId(user.getId())
+                .next()
+                .switchIfEmpty(Mono.error(() -> new BusinessRuleException(PAYMENT_METHOD_NOT_FOUND,
+                    "The user has no payment method.")))
+                .flatMap(pm -> draftFactory.build(user.getId(), toRequest(eOrder, user, pm)))));
+  }
 
-      Mono<PaymentMethod> paymentMono = userMono.flatMap(user -> 
-          paymentMethodRepo.findByUserId(user.getId())
-              .switchIfEmpty(Mono.error(new IllegalArgumentException("Payment method not found for user: " + user.getId())))
-      );
-
-      return Mono.zip(userMono, paymentMono).flatMap(tuple -> {
-        User user = tuple.getT1();
-        PaymentMethod paymentMethod = tuple.getT2();
-        TacoOrder order = new TacoOrder();
-        order.setUser(user);
-        order.setPaymentMethodId(paymentMethod.getId());
-        order.setDeliveryName(user.getFullname());
-        order.setDeliveryStreet(user.getStreet());
-        order.setDeliveryCity(user.getCity());
-        order.setDeliveryState(user.getState());
-        order.setDeliveryZip(user.getZip());
-        order.setPlacedAt(new Date());
-
-        return Flux.fromIterable(eOrder.getTacos())
-            .concatMap(emailTaco -> {
-              return Flux.fromIterable(emailTaco.getIngredients())
-                  .concatMap(ingredientId -> 
-                      ingredientRepo.findById(ingredientId)
-                          .switchIfEmpty(Mono.error(new IllegalArgumentException("Ingredient not found: " + ingredientId)))
-                  )
-                  .collectList()
-                  .map(ingredients -> {
-                    Taco taco = new Taco();
-                    taco.setName(emailTaco.getName());
-                    taco.setIngredients(ingredients);
-                    
-                    java.util.List<String> errors = tacoValidatorService.validate(taco);
-                    if (!errors.isEmpty()) {
-                        throw new IllegalArgumentException("Invalid taco design: " + String.join(", ", errors));
-                    }
-                    
-                    tacos.classification.ClassificationService.TacoClassification classification = classificationService.classify(taco);
-                    taco.setDietaryTags(classification.dietaryTags);
-                    taco.setAllergens(classification.allergens);
-                    taco.setSpiceLevel(classification.spiceLevel);
-                    
-                    java.math.BigDecimal tacoPrice = ingredients.stream()
-                        .map(i -> i.getUnitPrice() != null ? i.getUnitPrice() : java.math.BigDecimal.ZERO)
-                        .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add)
-                        .setScale(2, java.math.RoundingMode.HALF_UP);
-                    
-                    tacos.OrderItem item = new tacos.OrderItem();
-                    item.setTaco(taco);
-                    item.setQuantity(1); // Email orders only have 1 of each taco implicitly
-                    item.setUnitPriceAtPurchase(tacoPrice);
-                    item.setSubtotal(tacoPrice);
-                    
-                    return item;
-                  });
-            })
-            .collectList()
-            .map(items -> {
-              java.math.BigDecimal total = java.math.BigDecimal.ZERO;
-              for (tacos.OrderItem item : items) {
-                  order.addItem(item);
-                  total = total.add(item.getSubtotal());
-              }
-              order.setTotal(total);
-              return order;
-            });
-      });
-    });
+  private static OrderCreateRequest toRequest(EmailOrder eOrder, User user, PaymentMethod pm) {
+    OrderCreateRequest request = new OrderCreateRequest();
+    request.setDeliveryName(user.getFullname());
+    request.setDeliveryStreet(user.getStreet());
+    request.setDeliveryCity(user.getCity());
+    request.setDeliveryState(user.getState());
+    request.setDeliveryZip(user.getZip());
+    request.setPaymentMethodId(pm.getId());
+    // Las órdenes por correo traen una unidad de cada taco.
+    request.setItems(eOrder.getTacos().stream().map(emailTaco -> {
+      TacoRequest taco = new TacoRequest();
+      taco.setName(emailTaco.getName());
+      taco.setIngredientIds(emailTaco.getIngredients());
+      OrderCreateRequest.OrderItemRequest item = new OrderCreateRequest.OrderItemRequest();
+      item.setTaco(taco);
+      item.setQuantity(1);
+      return item;
+    }).collect(Collectors.toList()));
+    return request;
   }
 
 }

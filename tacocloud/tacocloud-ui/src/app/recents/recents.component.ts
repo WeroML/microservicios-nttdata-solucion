@@ -1,8 +1,6 @@
 import { Component, OnInit, Injectable } from '@angular/core';
-import { Http } from '@angular/http';
-import { HttpClient } from '@angular/common/http';
-import { Router } from '@angular/router';
-import { CartService } from '../cart/cart-service';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { RecentTacosService } from './RecentTacosService';
 
 @Component({
   selector: 'recent-tacos',
@@ -13,16 +11,28 @@ import { CartService } from '../cart/cart-service';
 @Injectable()
 export class RecentTacosComponent implements OnInit {
   recentTacos: any;
+  scores = {};
+  message: string;
 
-  constructor(private httpClient: HttpClient, private cart: CartService, private router: Router) { }
+  constructor(private recentTacosService: RecentTacosService, private httpClient: HttpClient) { }
 
   ngOnInit() {
-    this.httpClient.get('http://localhost:8080/api/tacos?recent') // <1>
-        .subscribe(data => this.recentTacos = data);
+    this.recentTacosService.getRecentTacos() // <1>
+        .subscribe(response => this.recentTacos = response.json().content);
   }
 
-  orderTaco(taco: any) {
-    this.cart.addToCart(taco);
-    this.router.navigate(['/cart']);
+  // TC-21: marcar favorito es idempotente (PUT).
+  addFavorite(taco: any) {
+    this.httpClient.put('http://localhost:8080/api/v1/users/me/favorites/' + taco.id, null)
+        .subscribe(() => this.message = '"' + taco.name + '" added to your favorites.');
+  }
+
+  // TC-22: el voto es del usuario autenticado; repetirlo lo actualiza.
+  rate(taco: any) {
+    const score = Number(this.scores[taco.id] || 5);
+    this.httpClient.put('http://localhost:8080/api/v1/tacos/' + taco.id + '/rating', { score: score }, {
+          headers: new HttpHeaders().set('Content-type', 'application/json')
+        })
+        .subscribe(() => this.message = 'You rated "' + taco.name + '" with ' + score + '.');
   }
 }

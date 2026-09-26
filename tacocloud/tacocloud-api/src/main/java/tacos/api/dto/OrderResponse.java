@@ -1,48 +1,52 @@
 package tacos.api.dto;
 
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.Date;
 import java.util.List;
+
 import lombok.Data;
 
+// TC-08/TC-12/TC-23: respuesta segura. Sin User, password, PAN, CVV ni token.
 @Data
 public class OrderResponse {
     private String id;
     private Date placedAt;
+    private String status;
     private String deliveryName;
     private String deliveryStreet;
     private String deliveryCity;
     private String deliveryState;
     private String deliveryZip;
-    private String paymentMethodId;
+    private PaymentSummary payment;
     private String discountCode;
-    private java.math.BigDecimal discountAmount;
-    private String status;
-    private java.util.List<StatusHistoryResponse> statusHistory;
+    private BigDecimal discountAmount;
+    private String currency;
+    private BigDecimal subtotal;
+    private BigDecimal total;
+    private List<OrderItemResponse> items;
+    private List<StatusHistoryResponse> statusHistory;
 
     @Data
-    public static class StatusHistoryResponse {
-        private String status;
-        private java.time.Instant changedAt;
-        private String changedBy;
-        private String reason;
+    public static class PaymentSummary {
+        private String brand;
+        private String last4;
     }
-
-    private List<OrderItemResponse> items;
-    private java.math.BigDecimal total;
 
     @Data
     public static class OrderItemResponse {
         private TacoResponse taco;
         private Integer quantity;
-        private java.math.BigDecimal unitPriceAtPurchase;
-        private java.math.BigDecimal subtotal;
+        private BigDecimal unitPriceAtPurchase;
+        private BigDecimal subtotal;
     }
 
     @Data
-    public static class TacoResponse {
-        private String id;
-        private String name;
-        private Date createdAt;
-        private List<IngredientResponse> ingredients;
+    public static class StatusHistoryResponse {
+        private String status;
+        private Instant changedAt;
+        private String changedBy;
+        private String origin;
+        private String reason;
     }
 }

@@ -29,7 +29,7 @@ export class DesignComponent implements OnInit {
 
   // tag::ngOnInit[]
   ngOnInit() {
-    this.httpClient.get('http://localhost:8080/api/ingredients')
+    this.httpClient.get('http://localhost:8080/api/v1/ingredients')
         .subscribe(data => {
           this.allIngredients = data;
           this.wraps = this.allIngredients.filter(w => w.type === 'WRAP');
@@ -50,14 +50,20 @@ export class DesignComponent implements OnInit {
   }
 
   // tag::onSubmit[]
+  // TC-17/TC-18: se envían sólo nombre e IDs; el servidor valida y clasifica.
   onSubmit() {
+    const design = {
+      name: this.model.name,
+      ingredientIds: this.model.ingredients.map(ingredient => ingredient.id)
+    };
     this.httpClient.post(
-        'http://localhost:8080/api/tacos',
-        this.model, {
+        'http://localhost:8080/api/v1/tacos',
+        design, {
             headers: new HttpHeaders().set('Content-type', 'application/json'),
-        }).subscribe(taco => this.cart.addToCart(taco));
-
-    this.router.navigate(['/cart']);
+        }).subscribe(taco => {
+          this.cart.addToCart(taco);
+          this.router.navigate(['/cart']);
+        });
   }
   // end::onSubmit[]
 

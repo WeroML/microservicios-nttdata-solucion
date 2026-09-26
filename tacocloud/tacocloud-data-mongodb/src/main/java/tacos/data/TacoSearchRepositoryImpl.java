@@ -1,12 +1,14 @@
 package tacos.data;
 
+import java.util.regex.Pattern;
+
+import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.ReactiveMongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
-import org.springframework.data.domain.Pageable;
+
 import reactor.core.publisher.Flux;
 import tacos.Taco;
-import java.util.List;
 
 public class TacoSearchRepositoryImpl implements TacoSearchRepository {
 
@@ -16,28 +18,30 @@ public class TacoSearchRepositoryImpl implements TacoSearchRepository {
         this.mongoTemplate = mongoTemplate;
     }
 
+    // TC-19: la consulta se arma y ejecuta en Mongo; nunca se filtra en memoria.
     @Override
-    public Flux<Taco> searchTacos(String name, String ingredientId, List<String> dietaryTags, List<String> excludeAllergens, String spiceLevel, Pageable pageable) {
-        Query query = new Query().with(pageable);
+    public Flux<Taco> searchTacos(TacoSearchCriteria criteria, Sort sort, long offset, int limit) {
+        Query query = new Query().with(sort).skip(offset).limit(limit);
 
-        if (name != null && !name.isEmpty()) {
-            query.addCriteria(Criteria.where("name").regex(name, "i"));
+        if (criteria.getName() != null && !criteria.getName().isEmpty()) {
+            // Pattern.quote escapa el texto: el usuario no puede inyectar una regex costosa.
+            query.addCriteria(Criteria.where("name").regex(Pattern.quote(criteria.getName()), "i"));
         }
 
-        if (ingredientId != null && !ingredientId.isEmpty()) {
-            query.addCriteria(Criteria.where("ingredients").elemMatch(Criteria.where("_id").is(ingredientId)));
+        if (criteria.getIngredientId() != null && !criteria.getIngredientId().isEmpty()) {
+            query.addCriteria(Criteria.where("ingredients._id").is(criteria.getIngredientId()));
         }
 
-        if (dietaryTags != null && !dietaryTags.isEmpty()) {
-            query.addCriteria(Criteria.where("dietaryTags").all(dietaryTags));
+        if (criteria.getDiet() != null) {
+            query.addCriteria(Criteria.where("dietaryTags").is(criteria.getDiet()));
         }
 
-        if (excludeAllergens != null && !excludeAllergens.isEmpty()) {
-            query.addCriteria(Criteria.where("allergens").nin(excludeAllergens));
+        if (criteria.getExcludeAllergens() != null && !criteria.getExcludeAllergens().isEmpty()) {
+            query.addCriteria(Criteria.where("allergens").nin(criteria.getExcludeAllergens()));
         }
 
-        if (spiceLevel != null && !spiceLevel.isEmpty()) {
-            query.addCriteria(Criteria.where("spiceLevel").is(spiceLevel));
+        if (criteria.getSpice() != null) {
+            query.addCriteria(Criteria.where("spiceLevel").is(criteria.getSpice()));
         }
 
         return mongoTemplate.find(query, Taco.class);

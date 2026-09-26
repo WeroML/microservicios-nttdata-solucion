@@ -15,7 +15,7 @@
       <div class="topbaritem" style="font-size: 17pt;">
         <a [routerLink]="['cart']" class="plainlink">
           <img src="assets/cart.png" align="center" />
-          {{cart.getItemsInCart().length * 4.99 | currency}}
+          {{cart.getItemsInCart().length}} tacos
         </a>
       </div>
     </div>
@@ -33,6 +33,12 @@
       <div class="bottombaritem">
         <!-- <a href="locations" class="plainlink">Locations</a> -->
         <a [routerLink]="['locations']" class="plainlink">Locations</a>
+      </div>
+      <div class="bottombaritem">
+        <a [routerLink]="['favorites']" class="plainlink">My favorites</a>
+      </div>
+      <div class="bottombaritem">
+        <a [routerLink]="['orders-history']" class="plainlink">My orders</a>
       </div>
     </div>
   </div>

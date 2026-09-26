@@ -1,26 +1,15 @@
-# The values given here are actually the default values. But they are explicitly
-# set here as an example of setting the Artemis properties.
+# Ejemplo de propiedades de Artemis. Las credenciales nunca se guardan en Git:
+# se leen de variables de ambiente (TC-28).
 spring:
-  jms:
-    template:
-      default-destination: tacocloud.order.queue
   artemis:
-    host: localhost
-    port: 61616
-    user: tacoweb
-    password: letm31n
+    host: ${ARTEMIS_HOST:localhost}
+    port: ${ARTEMIS_PORT:61616}
+    user: ${ARTEMIS_USER:}
+    password: ${ARTEMIS_PASSWORD:}
     embedded:
       enabled: false
-    
----
-# None of these properties will actually work as configured for this profile.
-# But it is left here as an example of configuring for a production profile
-# that will override the local configuration in the default profile.
-spring:
-  profiles: production
-    
-  artemis:
-    host: artemis.tacocloud.com
-    port: 61617
-    user: tacoweb
-    password: l3tm31n
+
+tacocloud:
+  messaging:
+    jms:
+      destination: tacocloud.order.queue

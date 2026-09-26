@@ -1,14 +1,20 @@
 package tacos.web.api;
 
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import reactor.core.publisher.Mono;
-import tacos.discount.DiscountService;
-import java.math.BigDecimal;
-import lombok.Data;
+import javax.validation.Valid;
 
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import reactor.core.publisher.Mono;
+import tacos.api.dto.CouponValidationRequest;
+import tacos.api.dto.CouponValidationResponse;
+import tacos.discount.DiscountService;
+
+// TC-15: valida un cupón sin crear la orden. No existe endpoint que liste cupones.
 @RestController
-@RequestMapping(path="/api/v1/coupons", produces="application/json")
+@RequestMapping(path={"/api/v1/coupons", "/api/coupons"}, produces="application/json")
 public class DiscountController {
 
     private final DiscountService discountService;
@@ -17,19 +23,12 @@ public class DiscountController {
         this.discountService = discountService;
     }
 
-    @PostMapping("/validate")
-    public Mono<ResponseEntity<DiscountService.DiscountResult>> validateCoupon(@RequestBody ValidateCouponRequest request) {
-        if (request.getCode() == null || request.getSubtotal() == null) {
-            return Mono.just(ResponseEntity.badRequest().build());
-        }
-        
-        DiscountService.DiscountResult result = discountService.applyDiscount(request.getCode(), request.getSubtotal());
-        return Mono.just(ResponseEntity.ok(result));
-    }
-
-    @Data
-    public static class ValidateCouponRequest {
-        private String code;
-        private BigDecimal subtotal;
+    @PostMapping(path="/validate", consumes="application/json")
+    public Mono<CouponValidationResponse> validateCoupon(@Valid @RequestBody CouponValidationRequest request) {
+        return Mono.fromSupplier(() -> {
+            DiscountService.DiscountResult result = discountService.applyDiscount(request.getCode(), request.getSubtotal());
+            return new CouponValidationResponse(result.isApplied(), result.publicResult(),
+                result.discount, result.total);
+        });
     }
 }

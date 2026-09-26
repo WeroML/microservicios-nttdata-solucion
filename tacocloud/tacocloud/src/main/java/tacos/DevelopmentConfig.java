@@ -1,6 +1,11 @@
 package tacos;
 
+import java.math.BigDecimal;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.HashSet;
+import java.util.List;
 
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
@@ -8,75 +13,103 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import tacos.Ingredient.Allergen;
+import tacos.Ingredient.DietaryTag;
+import tacos.Ingredient.SpiceLevel;
 import tacos.Ingredient.Type;
+import tacos.classification.ClassificationService;
 import tacos.data.IngredientRepository;
 import tacos.data.PaymentMethodRepository;
 import tacos.data.TacoRepository;
 import tacos.data.UserRepository;
 
+/**
+ * Datos de desarrollo coherentes con las reglas del catálogo (TC-13), la
+ * clasificación (TC-17), las reglas de diseño (TC-18), los roles (TC-11) y los
+ * métodos de pago tokenizados (TC-12). Son valores sintéticos sólo para laboratorio.
+ */
 @Profile("!prod")
 @Configuration
 public class DevelopmentConfig {
 
+  private static final EnumSet<DietaryTag> VEGAN = EnumSet.of(DietaryTag.VEGAN, DietaryTag.VEGETARIAN);
+  private static final EnumSet<DietaryTag> VEGAN_GF = EnumSet.of(DietaryTag.VEGAN, DietaryTag.VEGETARIAN, DietaryTag.GLUTEN_FREE);
+  private static final EnumSet<DietaryTag> VEGETARIAN_GF = EnumSet.of(DietaryTag.VEGETARIAN, DietaryTag.GLUTEN_FREE);
+  private static final EnumSet<DietaryTag> GLUTEN_FREE = EnumSet.of(DietaryTag.GLUTEN_FREE);
+
   @Bean
   public CommandLineRunner dataLoader(IngredientRepository repo,
         UserRepository userRepo, PasswordEncoder encoder, TacoRepository tacoRepo,
-        PaymentMethodRepository paymentMethodRepo) { // user repo for ease of testing with a built-in user
-    
-    return new CommandLineRunner() {
-      @Override
-      public void run(String... args) throws Exception {
-        Ingredient flourTortilla = saveAnIngredient("FLTO", "Flour Tortilla", Type.WRAP);
-        Ingredient cornTortilla = saveAnIngredient("COTO", "Corn Tortilla", Type.WRAP);
-        Ingredient groundBeef = saveAnIngredient("GRBF", "Ground Beef", Type.PROTEIN);
-        Ingredient carnitas = saveAnIngredient("CARN", "Carnitas", Type.PROTEIN);
-        Ingredient tomatoes = saveAnIngredient("TMTO", "Diced Tomatoes", Type.VEGGIES);
-        Ingredient lettuce = saveAnIngredient("LETC", "Lettuce", Type.VEGGIES);
-        Ingredient cheddar = saveAnIngredient("CHED", "Cheddar", Type.CHEESE);
-        Ingredient jack = saveAnIngredient("JACK", "Monterrey Jack", Type.CHEESE);
-        Ingredient salsa = saveAnIngredient("SLSA", "Salsa", Type.SAUCE);
-        Ingredient sourCream = saveAnIngredient("SRCR", "Sour Cream", Type.SAUCE);
-        
-//        UserUDT u = new UserUDT(username, fullname, phoneNumber)
-        
-        userRepo.save(new User("habuma", encoder.encode("password"), 
-              "Craig Walls", "123 North Street", "Cross Roads", "TX", 
-              "76227", "123-123-1234", "craig@habuma.com"))
-          .subscribe(user -> {
-              paymentMethodRepo.save(new PaymentMethod(user, "tok_fake_token", "Visa", "1111", "10/25")).subscribe();
-          });        
-        
-        Taco taco1 = new Taco();
-        taco1.setId("TACO1");
-        taco1.setName("Carnivore");
-        taco1.setIngredients(Arrays.asList(flourTortilla, groundBeef, carnitas, sourCream, salsa, cheddar));
-        tacoRepo.save(taco1).subscribe();
+        PaymentMethodRepository paymentMethodRepo, ClassificationService classificationService) {
 
-        Taco taco2 = new Taco();
-        taco2.setId("TACO2");
-        taco2.setName("Bovine Bounty");
-        taco2.setIngredients(Arrays.asList(cornTortilla, groundBeef, cheddar, jack, sourCream));
-        tacoRepo.save(taco2).subscribe();
+    return args -> {
+      Ingredient flourTortilla = ingredient("FLTO", "Flour Tortilla", Type.WRAP, "0.50", VEGAN, EnumSet.of(Allergen.WHEAT), SpiceLevel.NONE);
+      Ingredient cornTortilla = ingredient("COTO", "Corn Tortilla", Type.WRAP, "0.45", VEGAN_GF, EnumSet.noneOf(Allergen.class), SpiceLevel.NONE);
+      Ingredient groundBeef = ingredient("GRBF", "Ground Beef", Type.PROTEIN, "1.25", GLUTEN_FREE, EnumSet.noneOf(Allergen.class), SpiceLevel.NONE);
+      Ingredient carnitas = ingredient("CARN", "Carnitas", Type.PROTEIN, "1.40", GLUTEN_FREE, EnumSet.noneOf(Allergen.class), SpiceLevel.MILD);
+      Ingredient tomatoes = ingredient("TMTO", "Diced Tomatoes", Type.VEGGIES, "0.30", VEGAN_GF, EnumSet.noneOf(Allergen.class), SpiceLevel.NONE);
+      Ingredient lettuce = ingredient("LETC", "Lettuce", Type.VEGGIES, "0.25", VEGAN_GF, EnumSet.noneOf(Allergen.class), SpiceLevel.NONE);
+      Ingredient cheddar = ingredient("CHED", "Cheddar", Type.CHEESE, "0.60", VEGETARIAN_GF, EnumSet.of(Allergen.DAIRY), SpiceLevel.NONE);
+      Ingredient jack = ingredient("JACK", "Monterrey Jack", Type.CHEESE, "0.65", VEGETARIAN_GF, EnumSet.of(Allergen.DAIRY), SpiceLevel.NONE);
+      Ingredient salsa = ingredient("SLSA", "Salsa", Type.SAUCE, "0.35", VEGAN_GF, EnumSet.noneOf(Allergen.class), SpiceLevel.MEDIUM);
+      Ingredient sourCream = ingredient("SRCR", "Sour Cream", Type.SAUCE, "0.40", VEGETARIAN_GF, EnumSet.of(Allergen.DAIRY), SpiceLevel.NONE);
+      List<Ingredient> ingredients = Arrays.asList(flourTortilla, cornTortilla, groundBeef, carnitas,
+          tomatoes, lettuce, cheddar, jack, salsa, sourCream);
 
-        Taco taco3 = new Taco();
-        taco3.setId("TACO3");
-        taco3.setName("Veg-Out");
-        taco3.setIngredients(Arrays.asList(flourTortilla, cornTortilla, tomatoes, lettuce, salsa));
-        tacoRepo.save(taco3).subscribe();
+      Taco taco1 = taco("TACO1", "Carnivore", classificationService,
+          flourTortilla, groundBeef, carnitas, sourCream, salsa, cheddar);
+      Taco taco2 = taco("TACO2", "Bovine Bounty", classificationService,
+          cornTortilla, groundBeef, cheddar, jack, sourCream);
+      Taco taco3 = taco("TACO3", "Veg-Out", classificationService,
+          cornTortilla, tomatoes, lettuce, salsa);
 
-      }
+      User customer = user("habuma", "password", "Craig Walls", "craig@habuma.com", encoder, User.ROLE_USER);
+      User admin = user("admin", "password", "Taco Admin", "admin@tacocloud.test", encoder, User.ROLE_ADMIN);
+      User cook = user("kitchen", "password", "Taco Cook", "kitchen@tacocloud.test", encoder, User.ROLE_KITCHEN);
 
-      private Ingredient saveAnIngredient(String id, String name, Type type) {
-        Ingredient ingredient = new Ingredient(id, name, type);
-        ingredient.setUnitPrice(new java.math.BigDecimal("0.50"));
-        ingredient.setAvailable(true);
-        ingredient.setStockOnHand(100);
-        ingredient.setReorderLevel(10);
-        // ingredient.setVersion(0L);
-        repo.save(ingredient).subscribe();
-        return ingredient;
-      }
+      // Borde de arranque: la carga termina antes de que la aplicación atienda peticiones.
+      Flux.fromIterable(ingredients).concatMap(repo::save)
+          .thenMany(Flux.just(taco1, taco2, taco3).concatMap(tacoRepo::save))
+          .thenMany(Flux.just(admin, cook).concatMap(userRepo::save))
+          .then(userRepo.save(customer))
+          .flatMap(saved -> paymentMethodRepo.save(
+              new PaymentMethod(saved.getId(), "tok_dev_visa_1111", "VISA", "1111", "10/30")))
+          .then(Mono.empty())
+          .block();
     };
   }
-  
+
+  private static Ingredient ingredient(String id, String name, Type type, String price,
+      EnumSet<DietaryTag> tags, EnumSet<Allergen> allergens, SpiceLevel spice) {
+    Ingredient ingredient = new Ingredient(id, name, type);
+    ingredient.setUnitPrice(new BigDecimal(price));
+    ingredient.setAvailable(true);
+    ingredient.setStockOnHand(100);
+    ingredient.setReorderLevel(10);
+    ingredient.setDietaryTags(new HashSet<>(tags));
+    ingredient.setAllergens(new HashSet<>(allergens));
+    ingredient.setSpiceLevel(spice);
+    return ingredient;
+  }
+
+  private static Taco taco(String id, String name, ClassificationService classificationService,
+      Ingredient... ingredients) {
+    Taco taco = new Taco();
+    taco.setId(id);
+    taco.setName(name);
+    taco.setIngredients(Arrays.asList(ingredients));
+    classificationService.applyTo(taco);
+    return taco;
+  }
+
+  private static User user(String username, String password, String fullname, String email,
+      PasswordEncoder encoder, String role) {
+    User user = new User(username, encoder.encode(password), fullname, "123 North Street",
+        "Cross Roads", "TX", "76227", "123-123-1234", email);
+    user.setRoles(new HashSet<>(Collections.singleton(role)));
+    return user;
+  }
+
 }

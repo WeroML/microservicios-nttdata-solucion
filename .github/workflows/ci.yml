@@ -1,0 +1,44 @@
+# TC-36: pipeline reproducible desde un checkout limpio.
+# Corre pruebas unitarias (surefire) y de integración (failsafe), incluidas las de
+# Testcontainers (MongoDB replica set y RabbitMQ), porque el runner tiene Docker.
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tacocloud
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '11'
+          cache: maven
+
+      - name: Unit + integration tests
+        run: ./mvnw -B verify
+
+      # Una prueba crítica omitida (p. ej. Testcontainers sin Docker) hace fallar el pipeline.
+      # Se excluye tacocloud-web: módulo legado fuera del runtime con pruebas @Disabled de origen.
+      - name: Fail on skipped tests
+        if: always()
+        run: |
+          if grep -l -E 'skipped="[1-9]' $(find . -path '*/target/*-reports/TEST-*.xml' -not -path './tacocloud-web/*'); then
+            echo "Some tests were skipped"; exit 1
+          fi
+
+      - name: Test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            tacocloud/**/target/surefire-reports/
+            tacocloud/**/target/failsafe-reports/

@@ -1,26 +1,26 @@
 package tacos.validation;
 
-import org.springframework.stereotype.Component;
-import tacos.Taco;
-import java.util.List;
 import java.util.Collections;
+import java.util.List;
+
+import org.springframework.stereotype.Component;
+
+import tacos.Taco;
 
 @Component
 public class IngredientCountRule implements TacoRule {
+
+    public static final String CODE = "INGREDIENT_COUNT";
+    static final int MIN = 2;
+    static final int MAX = 12;
+
     @Override
-    public List<String> validate(Taco taco) {
-        if (taco.getIngredients() == null) {
-            return Collections.singletonList("A taco must have ingredients.");
-        }
-        
+    public List<RuleViolation> validate(Taco taco) {
         int size = taco.getIngredients().size();
-        if (size < 2) {
-            return Collections.singletonList("A taco must have at least 2 ingredients.");
+        if (size < MIN || size > MAX) {
+            return Collections.singletonList(new RuleViolation(CODE,
+                "A taco must have between " + MIN + " and " + MAX + " ingredients."));
         }
-        if (size > 12) {
-            return Collections.singletonList("A taco cannot exceed 12 ingredients.");
-        }
-        
         return Collections.emptyList();
     }
 }

@@ -3,6 +3,9 @@
 <p>You've crafted your mouthwatering taco masterpieces. Now, just imagine those
   creations appearing before you at home...or work...or wherever you are!</p>
 
+<p *ngIf="placedOrder"><b>Order {{placedOrder.id}} placed. Total calculated by Taco Cloud:
+  {{placedOrder.total | currency:placedOrder.currency}}</b></p>
+
 <p *ngIf="(cartItems.length == 0)"><b>There are no tacos currently in your cart.
   <a [routerLink]="['../design']">Create one now</a> or choose a
   <a [routerLink]="['../recents']">recently created taco</a>.</b></p>
@@ -20,7 +23,6 @@
               <td>Qty</td>
               <td>Name</td>
               <td>Description</td>
-              <td>Price</td>
             </tr>
           </thead>
           <tbody>
@@ -53,13 +55,11 @@
                 </span>
                 <span *ngIf="(item.taco.ingredients | wraps)?.length == 0">in a bowl</span>
                 </td>
-              <td align="right">{{4.99 * item.quantity | currency}}</td>
             </tr>
           </tbody>
           <tfoot>
             <tr>
-              <td colspan="3" align="right">Total:</td>
-              <td align="right"><span>{{cartTotal | currency}}</span></td>
+              <td colspan="3" align="right">The total is calculated by Taco Cloud when you submit the order.</td>
             </tr>
           </tfoot>
         </table>
@@ -143,13 +143,10 @@
       <div class="groupBox groupBoxHalf">
         <div class="groupBoxTitle">Here's how I'll pay...</div>
         <div class="groupBoxContent">
-          <label for="ccNumber">Credit Card #: </label>
-          <input type="text" [(ngModel)]="model.ccNumber" name="ccNumber"/>
-          <br/>
-
-          <label for="ccExpiration">Expiration / CVV: </label>
-          <input type="text" [(ngModel)]="model.ccExpiration" name="ccExpiration"/>
-          <input type="text" [(ngModel)]="model.ccCVV" name="ccCVV" size="4"/>
+          <label for="paymentMethodId">Payment method: </label>
+          <select [(ngModel)]="model.paymentMethodId" name="paymentMethodId">
+            <option *ngFor="let pm of paymentMethods" [value]="pm.id">{{pm.brand}} ending in {{pm.last4}}</option>
+          </select>
         </div>
       </div>
 

@@ -8,8 +8,4 @@ export class CartItem {
     this.taco = taco;
   }
 
-  get lineTotal() {
-    return this.quantity * 4.99;
-  }
-
 }

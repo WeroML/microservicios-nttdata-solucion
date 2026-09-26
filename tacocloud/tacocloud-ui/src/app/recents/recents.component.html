@@ -3,6 +3,8 @@
 <p>Even the greatest artists sometimes need to be inspired by the works of others.
   Here are some of the most recently created tacos, designed by taco artists just like you...</p>
 
+<p *ngIf="message"><b>{{message}}</b></p>
+
 <div class="recentsblock">
   <div class="tacoblock" *ngFor="let taco of recentTacos">
       <div class="tacoName"><span class="small">The</span><br/>"{{taco.name}}"</div>
@@ -17,6 +19,17 @@
         </div>
         <div *ngIf="(taco.ingredients | wraps)?.length == 0">in a bowl</div>
       </div>
-      <little-button label="Order this taco" (action)="orderTaco(taco)"></little-button>
+      <little-button label="Order this taco"></little-button>
+      <div>
+        <button (click)="addFavorite(taco)">Add to favorites</button>
+        <select [(ngModel)]="scores[taco.id]">
+          <option value="5">5</option>
+          <option value="4">4</option>
+          <option value="3">3</option>
+          <option value="2">2</option>
+          <option value="1">1</option>
+        </select>
+        <button (click)="rate(taco)">Rate</button>
+      </div>
   </div>
 </div>

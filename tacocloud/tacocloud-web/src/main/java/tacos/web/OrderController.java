@@ -64,7 +64,7 @@ public class OrderController {
       return "orderForm";
     }
 
-    order.setUser(user);
+    order.setUserId(user.getId());
     
     orderRepo.save(order);
     sessionStatus.setComplete();
@@ -78,7 +78,7 @@ public class OrderController {
 
     Pageable pageable = PageRequest.of(0, props.getPageSize());
     model.addAttribute("orders", 
-        orderRepo.findByUserOrderByPlacedAtDesc(user, pageable));
+        orderRepo.findByUserIdOrderByPlacedAtDesc(user.getId(), pageable));
     
     return "orderList";
   }

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <title>Taco Cloud Kitchen</title>
+    <meta http-equiv="refresh" content="15"/>
+  </head>
+
+  <body>
+    <h1>Taco Cloud Kitchen</h1>
+
+    <p th:if="${message}" th:text="${message}">message</p>
+    <p th:if="${error}" style="color: red" th:text="${error}">error</p>
+
+    <h2>Queue</h2>
+    <form method="post" th:action="@{/kitchen/claim}">
+      <button type="submit">Claim next order</button>
+    </form>
+    <table border="1">
+      <tr><th>Order</th><th>Placed at</th><th>Tacos</th><th>ETA (min)</th></tr>
+      <tr th:each="order : ${queue}">
+        <td th:text="${order.id}">ID</td>
+        <td th:text="${order.placedAt}">DATE</td>
+        <td>
+          <div th:each="item : ${order.items}">
+            <b th:text="${item.quantity} + ' x ' + ${item.tacoName}">1 x TACO</b>:
+            <span th:text="${#strings.listJoin(item.ingredients, ', ')}">INGREDIENTS</span>
+          </div>
+        </td>
+        <td th:text="${order.estimatedPrepMinutes}">10</td>
+      </tr>
+      <tr th:if="${#lists.isEmpty(queue)}"><td colspan="4">The queue is empty.</td></tr>
+    </table>
+
+    <h2>In progress</h2>
+    <table border="1">
+      <tr><th>Order</th><th>Status</th><th>Tacos</th><th>Next step</th></tr>
+      <tr th:each="ticket : ${inProgress}">
+        <td th:text="${ticket.orderId}">ID</td>
+        <td th:text="${ticket.status}">STATUS</td>
+        <td>
+          <div th:each="item : ${ticket.items}">
+            <b th:text="${item.quantity} + ' x ' + ${item.tacoName}">1 x TACO</b>
+          </div>
+        </td>
+        <td>
+          <form method="post" th:if="${nextStatus[ticket.status]}"
+                th:action="@{/kitchen/orders/{id}/advance/{status}(id=${ticket.orderId},status=${nextStatus[ticket.status]})}">
+            <button type="submit" th:text="${nextStatus[ticket.status]}">NEXT</button>
+          </form>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

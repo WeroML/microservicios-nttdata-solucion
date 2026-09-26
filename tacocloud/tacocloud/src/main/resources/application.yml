@@ -1,17 +1,8 @@
-security:
-  user:
-    name: buzz
-    password: infinity
-
 taco:
   orders:
     pageSize: 10
 
-tacocloud:
-  messaging:
-    transport: noop
-
-
+  # TC-15: cupones como configuración comercial (no en código).
   discount:
     codes:
       abcdef:
@@ -19,95 +10,175 @@ tacocloud:
         amount: 0.10
         validFrom: "2023-01-01"
         validUntil: "2030-12-31"
-        minPurchase: 0.0
+        minPurchase: 0.00
+        maxDiscount: 5.00
+      tacotuesday:
+        type: FIXED
+        amount: 1.00
+        validFrom: "2023-01-01"
+        validUntil: "2030-12-31"
+        minPurchase: 5.00
 
+tacocloud:
+  clock:
+    zone: America/Mexico_City
+  cors:
+    # TC-11: orígenes externos explícitos (UI de desarrollo con ng serve).
+    allowed-origins: http://localhost:4200
+  api:
+    max-page-size: 50
+  pricing:
+    currency: USD
+    max-quantity-per-line: 20
+  search:
+    max-page-size: 50
+    max-name-length: 50
+    sortable-fields: createdAt,name
+  ratings:
+    min-votes: 3
+    max-limit: 50
+  idempotency:
+    retention: 24h
+    in-progress-timeout: 30s
+  outbox:
+    poll-interval: 2000
+    batch-size: 20
+    max-attempts: 5
+    initial-backoff: 2s
+    max-backoff: 5m
+    claim-timeout: 1m
+    backlog-threshold: 100
+  kitchen:
+    station-id: ${TACOCLOUD_STATION_ID:STATION-1}
+    eta:
+      base-minutes: 5
+      per-taco-minutes: 2
+      per-ingredient-minutes: 1
+      per-order-ahead-minutes: 3
+  announcements:
+    max-active: 10
+    default-ttl: 7d
+    max-ttl: 30d
+  taco-rules:
+    spicy-needs-cheese:
+      enabled: true
+      min-spice-level: HOT
+    vegan-name:
+      enabled: true
+      keyword: vegan
+  # TC-28: el transporte (noop|jms|rabbit|kafka) se define por ambiente; aquí sólo
+  # los destinos. En desarrollo el perfil por defecto usa noop (ver abajo).
+  messaging:
+    transport: ${TACOCLOUD_MESSAGING_TRANSPORT:}
+    jms:
+      destination: tacocloud.order.queue
+    rabbit:
+      exchange: ""
+      routing-key: tacocloud.order.queue
+    kafka:
+      topic: tacocloud.orders.topic
 
+server:
+  # TC-03: respeta X-Forwarded-* para construir Location detrás de un proxy.
+  forward-headers-strategy: framework
 
-#logging:
-#  level:
-#    org.springframework.data.rest: debug
-
-# tag::springBootAdminCreds[]
-# tag::springBootAdminUri[]
 spring:
-# end::springBootAdminUri[]
-# end::springBootAdminCreds[]
   application:
     name: taco-cloud
   data:
     rest:
       base-path: /data-api
-    cassandra:
-      keyspace-name: tacocloud
-      schema-action: recreate
-# tag::springBootAdminCreds[]
-# tag::springBootAdminUri[]
+    mongodb:
+      # TC-10/TC-21/TC-22/TC-34: crea los índices únicos declarados en los documentos.
+      auto-index-creation: true
+  mongodb:
+    embedded:
+      # TC-29: las transacciones requieren MongoDB 4.0+ en replica set
+      # (versión y journal en EmbeddedMongoReplicaSetConfig).
+      storage:
+        repl-set-name: rs0
   boot:
     admin:
       client:
         url: http://localhost:9090
-# end::springBootAdminUri[]
-        username: admin
-        password: 53cr3t
-# end::springBootAdminCreds[]
-
-# The values given here are actually the default values. But they are explicitly
-# set here as an example of setting the Kafka properties.
+        username: ${SPRING_BOOT_ADMIN_USERNAME:}
+        password: ${SPRING_BOOT_ADMIN_PASSWORD:}
+  # Credenciales de brokers sólo por variables de ambiente, nunca en Git.
+  artemis:
+    host: ${ARTEMIS_HOST:localhost}
+    port: ${ARTEMIS_PORT:61616}
+    user: ${ARTEMIS_USER:}
+    password: ${ARTEMIS_PASSWORD:}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:}
+    password: ${RABBITMQ_PASSWORD:}
   kafka:
-    bootstrap-servers:
-    - localhost:9092
-    template:
-      default-topic: tacocloud.orders.topic
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     producer:
-      keySerializer: org.springframework.kafka.support.serializer.JsonSerializer
+      keySerializer: org.apache.kafka.common.serialization.StringSerializer
       valueSerializer: org.springframework.kafka.support.serializer.JsonSerializer
   jmx:
     enabled: true
 
-#tag::exposeAll[]
-#tag::excludeSome[]
-#tag::healthShowDetails[]
-#tag::infoGitModeFull[]
+# TC-11/TC-32: Actuator restringido. health es público pero los detalles sólo
+# los ve ADMIN; el resto de endpoints requiere ADMIN (SecurityConfig).
 management:
-#end::infoGitModeFull[]
-#end::healthShowDetails[]
   endpoints:
     web:
       exposure:
-        include: '*'
-#end::exposeAll[]
-        exclude: threaddump,heapdump
-#end::excludeSome[]
-#tag::healthShowDetails[]
+        include: health,info,metrics
   endpoint:
     health:
-      show-details: always
-#end::healthShowDetails[]
-#tag::infoGitModeFull[]
+      show-details: when-authorized
+      roles: ADMIN
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState,mongo,outbox
+  health:
+    status:
+      order: DOWN,OUT_OF_SERVICE,DEGRADED,UNKNOWN,UP
   info:
     git:
       mode: full
-#end::infoGitModeFull[]
 
-#tag::contactInfo[]
 info:
   contact:
     email: support@tacocloud.com
     phone: 822-625-6831
-#end::contactInfo[]
-
----
-spring:
-  profiles: prod
-
-  datasource:
-    url: jdbc:mysql://localhost/tacocloud
-    username: tacouser
-    password: tacopassword
-
 
 logging:
   pattern:
     console: "%clr(%d{${LOG_DATEFORMAT_PATTERN:-yyyy-MM-dd HH:mm:ss.SSS}}){faint} %clr(${LOG_LEVEL_PATTERN:-%5p}) %clr(${PID:- }){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} [cid:%X{correlationId}] %m%n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}"
+
+---
+# Desarrollo y pruebas: noop explícito (con WARN al arrancar) y sin health de
+# brokers que no se usan. En prod no hay valor por defecto: si falta, no arranca.
+spring:
+  config:
+    activate:
+      on-profile: "!prod"
+
+tacocloud:
+  messaging:
+    transport: ${TACOCLOUD_MESSAGING_TRANSPORT:noop}
+
+management:
+  health:
+    rabbit:
+      enabled: false
+    jms:
+      enabled: false
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+logging:
   level:
     tacos: WARN

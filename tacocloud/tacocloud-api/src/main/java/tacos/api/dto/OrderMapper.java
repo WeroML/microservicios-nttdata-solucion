@@ -1,75 +1,79 @@
 package tacos.api.dto;
 
+import java.util.Collections;
 import java.util.stream.Collectors;
+
 import org.springframework.stereotype.Component;
+
+import tacos.OrderItem;
+import tacos.OrderStatusHistory;
 import tacos.TacoOrder;
-import tacos.Taco;
 
 @Component
 public class OrderMapper {
 
+    private final TacoMapper tacoMapper;
+
+    public OrderMapper(TacoMapper tacoMapper) {
+        this.tacoMapper = tacoMapper;
+    }
+
     public OrderResponse toResponse(TacoOrder order) {
-        if (order == null) return null;
         OrderResponse resp = new OrderResponse();
         resp.setId(order.getId());
         resp.setPlacedAt(order.getPlacedAt());
+        resp.setStatus(order.getStatus() == null ? null : order.getStatus().name());
         resp.setDeliveryName(order.getDeliveryName());
         resp.setDeliveryStreet(order.getDeliveryStreet());
         resp.setDeliveryCity(order.getDeliveryCity());
         resp.setDeliveryState(order.getDeliveryState());
         resp.setDeliveryZip(order.getDeliveryZip());
+        if (order.getPaymentBrand() != null || order.getPaymentLast4() != null) {
+            OrderResponse.PaymentSummary payment = new OrderResponse.PaymentSummary();
+            payment.setBrand(order.getPaymentBrand());
+            payment.setLast4(order.getPaymentLast4());
+            resp.setPayment(payment);
+        }
         resp.setDiscountCode(order.getDiscountCode());
         resp.setDiscountAmount(order.getDiscountAmount());
-        
+        resp.setCurrency(order.getCurrency());
+        resp.setSubtotal(order.getSubtotal());
         resp.setTotal(order.getTotal());
-        if (order.getStatus() != null) {
-            resp.setStatus(order.getStatus().name());
-        }
-        if (order.getStatusHistory() != null) {
-            java.util.List<OrderResponse.StatusHistoryResponse> history = new java.util.ArrayList<>();
-            for (tacos.OrderStatusHistory h : order.getStatusHistory()) {
-                OrderResponse.StatusHistoryResponse hr = new OrderResponse.StatusHistoryResponse();
-                hr.setStatus(h.getStatus().name());
-                hr.setChangedAt(h.getChangedAt());
-                hr.setChangedBy(h.getChangedBy());
-                hr.setReason(h.getReason());
-                history.add(hr);
-            }
-            resp.setStatusHistory(history);
-        }
-        if (order.getItems() != null) {
-            resp.setItems(order.getItems().stream().map(this::toItemResponse).collect(Collectors.toList()));
-        }
+        resp.setItems(order.getItems() == null ? Collections.emptyList()
+            : order.getItems().stream().map(this::toItemResponse).collect(Collectors.toList()));
+        resp.setStatusHistory(order.getStatusHistory() == null ? Collections.emptyList()
+            : order.getStatusHistory().stream().map(this::toHistoryResponse).collect(Collectors.toList()));
         return resp;
     }
 
-    private OrderResponse.OrderItemResponse toItemResponse(tacos.OrderItem item) {
-        if (item == null) return null;
+    public OrderSummaryResponse toSummary(TacoOrder order) {
+        OrderSummaryResponse resp = new OrderSummaryResponse();
+        resp.setId(order.getId());
+        resp.setPlacedAt(order.getPlacedAt());
+        resp.setStatus(order.getStatus() == null ? null : order.getStatus().name());
+        resp.setItemCount(order.getItems() == null ? 0
+            : order.getItems().stream().mapToInt(OrderItem::getQuantity).sum());
+        resp.setCurrency(order.getCurrency());
+        resp.setTotal(order.getTotal());
+        return resp;
+    }
+
+    private OrderResponse.OrderItemResponse toItemResponse(OrderItem item) {
         OrderResponse.OrderItemResponse resp = new OrderResponse.OrderItemResponse();
         resp.setQuantity(item.getQuantity());
         resp.setUnitPriceAtPurchase(item.getUnitPriceAtPurchase());
         resp.setSubtotal(item.getSubtotal());
-        resp.setTaco(toTacoResponse(item.getTaco()));
+        resp.setTaco(item.getTaco() == null ? null : tacoMapper.toResponse(item.getTaco()));
         return resp;
     }
 
-    private OrderResponse.TacoResponse toTacoResponse(Taco taco) {
-        if (taco == null) return null;
-        OrderResponse.TacoResponse resp = new OrderResponse.TacoResponse();
-        resp.setId(taco.getId());
-        resp.setName(taco.getName());
-        resp.setCreatedAt(taco.getCreatedAt());
-        if (taco.getIngredients() != null) {
-            resp.setIngredients(taco.getIngredients().stream().map(i -> {
-                IngredientResponse ir = new IngredientResponse();
-                ir.setId(i.getId());
-                ir.setName(i.getName());
-                ir.setType(i.getType());
-                ir.setUnitPrice(i.getUnitPrice());
-                ir.setAvailable(i.isAvailable());
-                return ir;
-            }).collect(Collectors.toList()));
-        }
-        return resp;
+    private OrderResponse.StatusHistoryResponse toHistoryResponse(OrderStatusHistory h) {
+        OrderResponse.StatusHistoryResponse hr = new OrderResponse.StatusHistoryResponse();
+        hr.setStatus(h.getStatus() == null ? null : h.getStatus().name());
+        hr.setChangedAt(h.getChangedAt());
+        hr.setChangedBy(h.getChangedBy());
+        hr.setOrigin(h.getOrigin());
+        hr.setReason(h.getReason());
+        return hr;
     }
 }
